@@ -27,3 +27,5 @@ android/.idea/
 
 # ---- Logs ----
 *.log
+lanlink.stats.json
+lanlink.token

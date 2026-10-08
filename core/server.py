@@ -41,6 +41,16 @@ class Hub:
         self.latest_frame = b""
         self.frame_time = 0.0
         self.started_at = time.time()
+        # APK download stats (this session + all-time, persisted by config)
+        self.apk_downloads = 0
+        self.apk_downloads_base = config.read_apk_downloads()
+
+    def count_apk_download(self) -> int:
+        """Register one APK download; returns the all-time total."""
+        self.apk_downloads += 1
+        total = self.apk_downloads_base + self.apk_downloads
+        config.write_apk_downloads(total)
+        return total
 
     # -- token ---------------------------------------------------------
     def check_token(self, request) -> bool:
@@ -154,10 +164,14 @@ def make_app(hub: Hub) -> web.Application:
             return _no_token_response()
         apk = config.find_apk()
         if apk is not None:
+            total = hub.count_apk_download()
+            log(f"APK downloaded  (all-time total: {total})")
             return web.FileResponse(
                 apk,
                 headers={"Content-Disposition": 'attachment; filename="LAN-Link.apk"'},
             )
+        total = hub.count_apk_download()
+        log(f"APK download redirected to GitHub Releases  (all-time total: {total})")
         raise web.HTTPFound(config.RELEASE_APK_URL)
 
     @routes.get("/ws")
@@ -248,6 +262,8 @@ def make_app(hub: Hub) -> web.Application:
             "has_frame": bool(hub.latest_frame),
             "fps_hint": round(1.0 / (time.time() - hub.frame_time), 1) if hub.frame_time else 0.0,
             "uptime_sec": round(time.time() - hub.started_at, 1),
+            "apk_downloads": hub.apk_downloads,
+            "apk_downloads_total": hub.apk_downloads_base + hub.apk_downloads,
         })
 
     app.add_routes(routes)

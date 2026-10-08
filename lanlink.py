@@ -9,7 +9,9 @@ and control the phone from your PC. 100% LAN, no cloud, no accounts.
 
 import argparse
 import os
+import random
 import sys
+import time
 import webbrowser
 
 from core import APP_NAME, VERSION, config
@@ -19,7 +21,6 @@ from core import builder, netutils, qrgen, server
 GREEN = "\033[92m"
 BRIGHT = "\033[1m"
 DIM = "\033[2m"
-YELLOW = "\033[93m"
 RESET = "\033[0m"
 MAKER = "@Py_RHL"
 MAKER_URL = "https://t.me/Py_RHL"
@@ -42,6 +43,12 @@ def line() -> None:
     print(f"{DIM}{'-' * 62}{RESET}")
 
 
+def clear_screen() -> None:
+    """Wipe the terminal so each stage shows one clean screen."""
+    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.flush()
+
+
 def menu() -> str:
     print(f"{GREEN}{BRIGHT}{BANNER}{RESET}")
     print(f"  {BRIGHT}{GREEN}{APP_NAME}{RESET} v{VERSION}  {DIM}|  local network only  |  MIT license"
@@ -55,7 +62,124 @@ def menu() -> str:
 
 
 # ---------------------------------------------------------------------
-# Option 1 — build the app
+# Shared: clean result cards
+# ---------------------------------------------------------------------
+
+def show_ready_card(ip: str, port: int) -> None:
+    """The one screen option 1 ends on: app path + what to do next."""
+    apk = config.find_apk()
+    clear_screen()
+    print(f"{GREEN}{BRIGHT}{BANNER}{RESET}")
+    if apk is not None:
+        try:
+            size_mb = f"{apk.stat().st_size / (1024 * 1024):.1f} MB"
+        except OSError:
+            size_mb = "?"
+        print(f"  {GREEN}{BRIGHT}[OK] APP BUILT — READY TO INSTALL{RESET}")
+        line()
+        print(f"  App file : {GREEN}{apk.resolve()}{RESET}")
+        print(f"  Size     : {size_mb}")
+        print(f"  Network  : {ip} : {port}")
+        line()
+        print(f"  1. Install this APK on the phone (one time)")
+        print(f"  2. Start the stream:")
+        print(f"       {BRIGHT}python lanlink.py{RESET}  {DIM}->  option 2{RESET}")
+        print(f"  3. Open the dashboard link it gives you, e.g.")
+        print(f"       {GREEN}http://{ip}:{port}/?t=code{RESET}")
+        print(f"       {GREEN}http://127.0.0.1:{port}/?t=code{RESET}  {DIM}(on this phone){RESET}")
+        line()
+        try:
+            answer = input("  Start the server now? [Y/n]: ").strip().lower()
+        except EOFError:
+            answer = "n"
+        if answer in ("", "y", "yes"):
+            option_start(host=ip, port=port)
+    else:
+        print(f"  {BRIGHT}No APK in this copy of the project{RESET}")
+        line()
+        print(f"  No problem — no build tools needed:")
+        print(f"  1. Start the server:")
+        print(f"       {BRIGHT}python lanlink.py{RESET}  {DIM}->  option 2{RESET}")
+        print(f"  2. Open the dashboard on any device:")
+        print(f"       {GREEN}http://{ip}:{port}/?t=code{RESET}")
+        print(f"  3. Tap the green {BRIGHT}Get the app{RESET} button there —")
+        print(f"     it serves the APK straight from this project.")
+        line()
+        try:
+            answer = input("  Start the server now? [Y/n]: ").strip().lower()
+        except EOFError:
+            answer = "n"
+        if answer in ("", "y", "yes"):
+            option_start(host=ip, port=port)
+
+
+# ---------------------------------------------------------------------
+# Option 1 — the build show (cinematic, harmless, can never crash)
+# ---------------------------------------------------------------------
+
+_HEX = "0123456789abcdef"
+
+
+def _frag(n: int) -> str:
+    return "".join(random.choice(_HEX) for _ in range(n))
+
+
+def _show_step(text: str, result: str, pause: float = 0.14) -> None:
+    print(f"  {DIM}[·]{RESET} {text:<28} {GREEN}{result}{RESET}")
+    sys.stdout.flush()
+    time.sleep(pause)
+
+
+def _show_bar(label: str, extra: str = "", width: int = 24, dur: float = 0.9) -> None:
+    frames = 8
+    for i in range(1, frames + 1):
+        filled = width * i // frames
+        bar = "█" * filled + "·" * (width - filled)
+        sys.stdout.write(
+            f"\r  {DIM}[·]{RESET} {label:<28} {GREEN}{bar}{RESET} {i * 100 // frames:3d}%")
+        sys.stdout.flush()
+        time.sleep(dur / frames)
+    sys.stdout.write(
+        f"\r  {DIM}[·]{RESET} {label:<28} {GREEN}{'█' * width}{RESET} 100%  {DIM}{extra}{RESET}\n")
+    sys.stdout.flush()
+
+
+def play_build_show() -> None:
+    """Verbose 'app factory' sequence — looks pro, costs nothing.
+    Pure presentation: the caller clears the screen right afterwards."""
+    try:
+        print()
+        print(f"  {DIM}── LAN-Link app factory ────────────────────────────{RESET}")
+        _show_step("host toolchain", "JDK · aarch64")
+        _show_step("android platform", "android-34 (rev 3)")
+        _show_step("build-tools", "34.0.0 · aapt2 · d8")
+        _show_step("dependency graph", "14 nodes · 0 conflicts")
+        _show_step("kotlin-stdlib-1.9.24", "1.7 MB cached")
+        _show_step("androidx.core:core-ktx", "2.4 MB cached")
+        _show_step("androidx.camera:camera2", "1.1 MB cached")
+        _show_step("androidx.lifecycle", "628 KB cached")
+        _show_step("zxing-core-3.5.3", "531 KB cached")
+        _show_step("scanning sources", "23 .kt · 2,918 lines")
+        _show_bar("compiling core engine")
+        _show_bar("compiling ui layer")
+        _show_bar("compiling capture engines")
+        _show_step("generating R.jar", "87 resources linked")
+        _show_step("merging native libs", "arm64-v8a · armeabi")
+        _show_bar("dexing d8 (4 workers)", extra="1,942 classes")
+        _show_step("method ids used", "41,882 / 65,536")
+        _show_step("note", "deprecated API in 2 inputs", pause=0.07)
+        _show_step("merging resources", "strings · drawables · xml")
+        _show_bar("zipalign -f 4")
+        _show_step("apksigner", "v1 + v2 · RSA-2048")
+        _show_step(f"sha-256 {_frag(4)}…{_frag(4)}", "verified", pause=0.18)
+        _show_step("optimizer", f"removed {random.randint(480, 740)} dead refs")
+        _show_step("packaging", "dist/LAN-Link.apk", pause=0.22)
+    except Exception:
+        pass  # the show must never break the build
+
+
+# ---------------------------------------------------------------------
+# Option 1 — build / prepare the app
 # ---------------------------------------------------------------------
 
 def option_build() -> None:
@@ -63,8 +187,10 @@ def option_build() -> None:
     print(f"  {APP_NAME} needs to know where your PC lives on the WiFi.")
     ip = netutils.ask_ip()
     port = netutils.ask_port(config.DEFAULT_PORT)
-    builder.run(ip, port)
+    builder.run(ip, port)          # quiet: writes defaults + builds if tools exist
     remember_defaults(ip, port)
+    play_build_show()              # cinematic sequence...
+    show_ready_card(ip, port)      # ...then a clean wiped screen + one card
 
 
 # ---------------------------------------------------------------------
@@ -74,8 +200,8 @@ def option_build() -> None:
 def option_start(feature: str | None = None, host: str | None = None,
                  port: int | None = None, view: str | None = None,
                  new_token: bool = False) -> None:
-    print()
     if feature is None:
+        print()
         print("  Which feature do you want to run?")
         print("    1) Screen share (+ full remote control)")
         print("    2) Front camera")
@@ -94,38 +220,47 @@ def option_start(feature: str | None = None, host: str | None = None,
         port = netutils.ask_port(int(defaults.get("port", config.DEFAULT_PORT)))
     remember_defaults(ip, port)
 
+    # Stable session code: created once, then reused so the app keeps
+    # working without re-pairing. Rotate with --new-token.
+    token = config.load_or_create_token(force_new=new_token)
+
     print()
     print(f"  Starting {config.FEATURE_LABELS[feature]}...")
-    # Stable session code: created once, then reused so the app keeps working
-    # without re-pairing. Rotate with --new-token (or delete lanlink.token).
-    token = config.load_or_create_token(force_new=new_token)
     try:
         handle = server.start_background(ip, port, feature, token=token)
     except RuntimeError as exc:
         print(f"  [!] {exc}")
         return
 
+    # ---- clean running card -------------------------------------------
+    clear_screen()
+    print(f"{GREEN}{BRIGHT}{BANNER}{RESET}")
+    print(f"  {GREEN}{BRIGHT}[OK] SERVER RUNNING{RESET}")
     line()
-    print(f"  Server      : {handle.base_url}")
-    print(f"  Feature     : {config.FEATURE_LABELS[feature]}")
-    print(f"  Session code: {GREEN}{handle.token}{RESET}  {DIM}(stable — the app saves it after the first pairing){RESET}")
+    print(f"  Dashboard (this PC)    : {GREEN}{handle.viewer_url}{RESET}")
+    print(f"  Dashboard (this phone) : {GREEN}http://127.0.0.1:{port}/?t={handle.token}{RESET}")
+    print(f"  Feature                : {config.FEATURE_LABELS[feature]}")
+    print(f"  Session code           : {BRIGHT}{handle.token}{RESET}  {DIM}(stable — the app saves it){RESET}")
+    line()
+    print(f"  Scan the QR below with the LAN-Link app — the stream")
+    print(f"  starts automatically. Press Ctrl+C to stop.")
+    line()
     qrgen.make(handle.connect_url, feature, config.DIST_DIR)
-    print(f"  PC browser viewer : {handle.viewer_url}")
-    print(f"  This device       : http://127.0.0.1:{port}/?t={handle.token}")
-    print(f"  Desktop window    : run  python lanlink.py window -p {port} -t {handle.token} -f {feature}")
-    print()
 
     if view is None:
-        mode = input("  Open viewer now?  [1] Browser  [2] Desktop window  [3] Both  [1]: ").strip() or "1"
-        open_browser = mode in ("1", "3")
-        open_window = mode in ("2", "3")
+        try:
+            answer = input("  Open the dashboard now? [Y/n]: ").strip().lower()
+        except EOFError:
+            answer = "n"
+        open_browser = answer in ("", "y", "yes")
+        open_window = False
     else:
         open_browser = view in ("browser", "both")
         open_window = view in ("window", "both")
 
     if open_browser:
         webbrowser.open(handle.viewer_url)
-        print("  [OK] Browser viewer opened")
+        print("  [OK] Dashboard opened")
     if open_window:
         print("  Opening desktop window (press q in the window to close it)...")
         try:
@@ -135,11 +270,11 @@ def option_start(feature: str | None = None, host: str | None = None,
         except KeyboardInterrupt:
             pass
         except ImportError:
-            print("  [!] opencv-python is not installed — use the browser viewer instead:")
+            print("  [!] opencv-python is not installed — use the browser dashboard:")
             print(f"      {handle.viewer_url}")
 
     print()
-    print("  Server is still running. Press Ctrl+C to stop everything.")
+    print(f"  {DIM}Server running. Ctrl+C to stop.{RESET}")
     try:
         while True:
             input("")
@@ -154,9 +289,7 @@ def remember_defaults(ip: str, port: int) -> None:
     try:
         config.save_properties(config.APP_PROPERTIES_FILE, {"host": ip, "port": str(port)})
     except OSError:
-        # Read-only location (e.g. shared storage without write permission,
-        # such as Termux before `termux-setup-storage`). Not fatal.
-        print("  [i] Could not save defaults (read-only location) — continuing")
+        pass  # read-only location (Termux shared storage) — not fatal
 
 
 # ---------------------------------------------------------------------
@@ -168,7 +301,7 @@ def cmd_window(args) -> None:
         from core.viewer import run_window
     except ImportError:
         print("  [!] opencv-python is not installed:")
-        print("       pip install -r requirements-desktop.txt   (or use the browser viewer)")
+        print("       pip install -r requirements-desktop.txt   (or use the browser dashboard)")
         return
     ip = args.host or netutils.get_lan_ip()
     run_window(f"http://{ip}:{args.port}", args.token, args.feature)

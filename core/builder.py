@@ -89,106 +89,48 @@ def write_local_properties(sdk: Path | None) -> None:
 # Main entry: run(ip, port)
 # ---------------------------------------------------------------------
 
-def run(ip: str, port: int) -> None:
-    print()
-    print("=" * 62)
-    print("  STEP 1 — Prepare the LAN-Link Android app")
-    print("=" * 62)
+def run(ip: str, port: int) -> Path | None:
+    """Prepare the app quietly and return the APK path (or None).
 
+    Deliberately SILENT: option 1 clears the screen afterwards and shows
+    one clean summary card. Progress is limited to a build in progress.
+    """
     # 1) Bundle the connection defaults into the app assets -------------
     try:
         config.save_properties(config.APP_PROPERTIES_FILE, {
             "host": ip,
             "port": str(port),
         })
-        _ok(f"Connection defaults written: {config.APP_PROPERTIES_FILE}")
-        _info(f"    host = {ip}")
-        _info(f"    port = {port}")
     except OSError:
-        # Read-only location (e.g. Termux shared storage) — the build can
-        # still proceed or the guidance below still applies.
-        _warn(f"Could not write {config.APP_PROPERTIES_FILE} (read-only location)")
+        pass  # read-only location — the app still works via QR/manual entry
 
-    # 2) Toolchain check -------------------------------------------------
-    print()
-    print("  Checking build tools...")
+    # 2) Already built (ships inside the project since v1.1.0)? --------
+    apk = config.find_apk()
+    if apk is not None:
+        return apk
+
+    # 3) Try an automatic build only if the full toolchain exists ------
     java_ver = find_java()
     gradle = find_gradle()
     sdk = find_android_sdk()
     write_local_properties(sdk)
+    if not (java_ver and java_ver >= 17 and gradle and sdk):
+        return None
 
-    if java_ver and java_ver >= 17:
-        _ok(f"JDK found (version {java_ver})")
-    else:
-        _warn("JDK 17+ not found (required by Android Gradle Plugin 8.x)")
-
-    if gradle:
-        _ok(f"Gradle found: {gradle}")
-    else:
-        _warn("Gradle not found in PATH")
-
-    if sdk:
-        _ok(f"Android SDK found: {sdk}")
-    else:
-        _warn("Android SDK not found (ANDROID_HOME is not set)")
-
-    # 3) Try the automatic build ----------------------------------------
-    apk_path = None
-    if java_ver and java_ver >= 17 and gradle and sdk:
-        print()
-        _info("Building the APK with Gradle (first build may take a few minutes)...")
-        env = os.environ.copy()
-        env["ANDROID_HOME"] = str(sdk)
-        try:
-            subprocess.run(
-                [gradle, "-p", str(config.ANDROID_DIR), ":app:assembleDebug", "--no-daemon"],
-                check=True,
-                env=env,
-            )
-            built = config.ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
-            if built.exists():
-                config.DIST_DIR.mkdir(parents=True, exist_ok=True)
-                apk_path = config.DIST_DIR / "LAN-Link.apk"
-                shutil.copy2(built, apk_path)
-        except (subprocess.CalledProcessError, OSError) as exc:
-            _warn(f"Gradle build failed: {exc}")
-
-    # 4) Report the result ------------------------------------------------
-    print()
-    if apk_path:
-        print("=" * 62)
-        print(f"  [OK] THE APP IS READY: {apk_path.resolve()}")
-        print("=" * 62)
-        print("  Next steps:")
-        print("    1. Move the APK to your phone and install it")
-        print("       (allow 'Install unknown apps' for your file manager)")
-        print("    2. Open LAN-Link on the phone, grant the permissions")
-        print("    3. Enable the two services (one-time setup):")
-        print("         Settings > Accessibility > LAN-Link Control  -> ON")
-        print("         Settings > System > Languages & input")
-        print("                  > On-screen keyboard > LAN-Link Text -> ON")
-        print("    4. Run: python lanlink.py  ->  option 2  ->  scan the QR")
-        print()
-    else:
-        print("  Automatic build is not possible on this machine right now.")
-        print("  No problem — pick one of these two easy ways:")
-        print()
-        print("  A) Android Studio (recommended for daily development)")
-        print("     1. Install Android Studio (it bundles SDK + Gradle)")
-        print("     2. Open the folder:  " + str(config.ANDROID_DIR))
-        print("     3. Menu: Build > Build App Bundle(s) / APK(s) > Build APK(s)")
-        print("     4. The APK appears under android/app/build/outputs/apk/debug/")
-        print()
-        print("  B) GitHub Actions (no tools installed at all)")
-        print("     1. Push this repo to GitHub")
-        print("     2. Open the Actions tab -> 'Build Android APK'")
-        print("     3. Download the APK artifact from the finished run")
-        print()
-        _info("The connection defaults are already saved — the built app")
-        _info("will connect to this PC automatically once installed.")
-        print()
-        print("  C) No tools installed at all? Activate the GitHub Actions build")
-        print("     (README > 'Enable the GitHub Actions APK builder', 30 seconds).")
-        print("     The APK lands in the repo Releases, and the green")
-        print("     'Get the app' button inside the web viewer serves it.")
-        print()
+    print("  Building the APK (first build may take a few minutes)...")
+    env = os.environ.copy()
+    env["ANDROID_HOME"] = str(sdk)
+    try:
+        subprocess.run(
+            [gradle, "-p", str(config.ANDROID_DIR), ":app:assembleDebug",
+             "--console=plain", "--no-daemon"],
+            check=True,
+            env=env,
+        )
+        built = config.ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
+        if built.exists():
+            config.DIST_DIR.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(built, config.DIST_DIR / "LAN-Link.apk")
+    except (subprocess.CalledProcessError, OSError):
+        return None
+    return config.find_apk()

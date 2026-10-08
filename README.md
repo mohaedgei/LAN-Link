@@ -42,6 +42,9 @@ A small Python script drives everything:
   with four tabs: **Live** (stream + feature switches + fullscreen),
   **Remote control** (navigation keys, zoom, text typing with quick
   phrases), **Get the app** (in-page APK download) and **Help**.
+- **Live stats** — the dashboard header shows stream fps, resolution,
+  connected viewers, uptime and how many times the APK was downloaded
+  (persisted all-time counter); the terminal logs each download too.
 - **Ready-made APK** — a built `LAN-Link.apk` ships in `dist/`, and the
   green “⬇ Get the app” button on every page serves it instantly — no
   build tools needed on any machine.

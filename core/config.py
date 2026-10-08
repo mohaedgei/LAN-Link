@@ -4,7 +4,7 @@ import secrets
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # Project root = parent of the "core" package folder
 ROOT = Path(__file__).resolve().parent.parent
@@ -14,6 +14,7 @@ ASSETS_DIR = ANDROID_DIR / "app" / "src" / "main" / "assets"
 APP_PROPERTIES_FILE = ASSETS_DIR / "lanlink.properties"
 DIST_DIR = ROOT / "dist"
 TOKEN_FILE = ROOT / "lanlink.token"
+STATS_FILE = ROOT / "lanlink.stats.json"
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 DEFAULT_PORT = 8080
@@ -72,6 +73,29 @@ def find_apk():
         except OSError:
             continue
     return None
+
+
+# ---------------------------------------------------------------------
+# APK download statistics (shown live on the dashboard)
+# ---------------------------------------------------------------------
+
+def read_apk_downloads() -> int:
+    """All-time APK download count (0 if the stats file is missing)."""
+    try:
+        import json
+        data = json.loads(STATS_FILE.read_text(encoding="utf-8"))
+        return int(data.get("apk_downloads", 0))
+    except (OSError, ValueError, TypeError):
+        return 0
+
+
+def write_apk_downloads(total: int) -> None:
+    """Persist the all-time APK download counter (silent on failure)."""
+    try:
+        import json
+        STATS_FILE.write_text(json.dumps({"apk_downloads": total}), encoding="utf-8")
+    except OSError:
+        pass
 
 
 FEATURE_LABELS = {

@@ -145,6 +145,7 @@
     <span class="chip">stream <b id="cFps">0 fps</b></span>
     <span class="chip">quality <b id="cRes">&mdash;</b></span>
     <span class="chip">viewers <b id="cViewers">1</b></span>
+    <span class="chip">APK downloads <b id="cDl">&mdash;</b></span>
     <span class="chip">uptime <b id="cUp">0s</b></span>
     <span class="chip">server <b>v$version</b></span>
   </div>
@@ -232,7 +233,8 @@
       <h2>LAN-Link Android app</h2>
       <p>Screen share + front / back camera streaming with full remote control.<br>No cloud, no accounts &mdash; everything stays on your WiFi.</p>
       <a class="apk" href="$apk_url">&#11015; Download LAN-Link APK</a>
-      <div class="dlmeta">$apk_info &middot; connect it once with the session code and it remembers</div>
+      <div class="dlmeta">$apk_info &middot; downloaded <b id="dlTotal">&hellip;</b> times &middot; connect once and the app remembers</div>
+      <div class="dlmeta" id="dlLive">Watching this dashboard right now: <b>1</b> device &middot; phone status: <b id="dlDev">checking&hellip;</b></div>
     </div>
     <div class="panel steps">
       <h3>Install in 3 steps</h3>
@@ -412,6 +414,13 @@
   setInterval(function () {
     fetch("/status?t=" + TOKEN).then(function (r) { return r.json(); }).then(function (s) {
       if (typeof s.viewers === "number") { document.getElementById("cViewers").textContent = s.viewers + 1; }
+      if (typeof s.apk_downloads_total === "number") {
+        document.getElementById("cDl").textContent = s.apk_downloads_total;
+        document.getElementById("dlTotal").textContent = s.apk_downloads_total;
+      }
+      if (typeof s.device_connected === "boolean") {
+        document.getElementById("dlDev").textContent = s.device_connected ? "connected" : "waiting";
+      }
       if (typeof s.uptime_sec === "number") {
         var u = Math.floor(s.uptime_sec), t;
         if (u >= 3600) { t = Math.floor(u / 3600) + "h " + Math.floor((u % 3600) / 60) + "m"; }
