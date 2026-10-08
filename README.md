@@ -159,7 +159,18 @@ Notes for Termux:
 |-----|------|-----|
 | Automatic (`python lanlink.py` -> 1) | JDK 17 + Gradle + Android SDK are installed | The script writes `assets/lanlink.properties` and runs `gradle :app:assembleDebug`, copying the APK to `dist/` |
 | Android Studio | Daily development | Open the `android/` folder, *Build > Build APK(s)* |
-| GitHub Actions | Nothing installed locally | Push the repo; the **Build Android APK** workflow uploads the APK as an artifact. Download, install, done. |
+| GitHub Actions | Nothing installed locally | Activate the build workflow once (below), then every push uploads the APK as an artifact |
+
+### Enable the GitHub Actions APK builder (one-time, 30 seconds)
+
+The workflow ships as a plain text file so you can add it from the
+GitHub website without any special token:
+
+1. Open `docs/android-build-workflow.yml.txt` in this repo and copy its content.
+2. On GitHub: **Add file > Create new file** -> name it
+   `.github/workflows/android-build.yml`
+3. Paste the content, commit — done. The **Actions** tab will now build
+   the APK on every push (download it from the run's *Artifacts*).
 
 ## Security & responsible use
 
@@ -232,6 +243,14 @@ Notes for Termux:
 4. `python lanlink.py` → خيار **2** → اختار الميزة → امسح الـ QR
 5. اتفرج من المتصفح أو نافذة سطح المكتب، وتحكم: كليك = لمسة، سحب = سوايب،
    `z/x` = زووم، `b/h/r` = رجوع/هوم/المتاحة، `t` = اكتب نص.
+
+### تفعيل بيلد الـ APK أوتوماتيك من GitHub (مرة واحدة، 30 ثانية)
+
+1. افتح ملف `docs/android-build-workflow.yml.txt` في الريبو وانقل محتواه.
+2. على GitHub: **Add file > Create new file** → سمّيه
+   `.github/workflows/android-build.yml`
+3. الصق المحتوى واعمل commit — خلاص. من تاب **Actions** هتلاقي الـ APK
+   جاهز للتحميل مع كل رفع جديد (من Artifacts).
 
 ### استخدام مسؤول
 
