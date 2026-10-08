@@ -9,11 +9,6 @@
 
     <string name="btn_scan_now">SCAN QR CODE</string>
     <string name="btn_pick_image">Decode QR from a picture</string>
-    <string name="btn_screen">Watch Screen</string>
-    <string name="btn_front">Front Camera</string>
-    <string name="btn_back">Back Camera</string>
-    <string name="btn_stop">Stop streaming</string>
-    <string name="btn_rescan">Scan a different QR</string>
 
     <string name="target_label">Connected target</string>
     <string name="hint_encrypted">The QR is fully encrypted (AES-256-GCM) — only this app can decode it.\n\nGenerate one with the LAN-Link script on your PC, or online:</string>
@@ -25,7 +20,7 @@
     <string name="notif_text">Sharing with your PC over local WiFi</string>
     <string name="notif_stop">Stop</string>
 
-    <string name="scanner_hint">Point the camera at the QR code shown on your PC</string>
-    <string name="encrypted_hint_short">Encrypted QRs open the connection — normal QRs are shown like any reader</string>
+    <string name="scanner_hint">Point the camera at the LAN-Link QR on your PC</string>
+    <string name="reader_hint_short">A LAN-Link QR connects automatically — any other QR is shown like a normal reader</string>
     <string name="actions_label">ACTIONS</string>
 </resources>

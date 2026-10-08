@@ -27,6 +27,12 @@ PREFIX = "QL1."
 SECRET = "qlink-secret-v1-do-not-share"
 TTL_SECONDS = 24 * 60 * 60
 
+# v3.0 plain marker format (readable by humans, recognised by the app):
+#   LL1|<ip>|<port>|<token>|<feature>[|<relay-site>]
+# e.g.  LL1|192.168.1.100|8080|ab12cd|screen
+PLAIN_PREFIX = "LL1|"
+PLAIN_FEATURES = ("screen", "front", "back", "any")
+
 NONCE_LEN = 12
 TAG_LEN = 16
 
@@ -43,6 +49,40 @@ def _pad_b64(raw: bytes) -> str:
 
 def _unpad_b64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def build_plain(cmd: str, host: str, port: int, token: str,
+                via: str = "direct", site: str | None = None) -> str:
+    """Build the v3.0 plain LAN-Link QR payload.
+
+    The app recognises it by the small ``LL1|`` marker and reads the
+    fields directly — no encryption, no extra library, and anyone who
+    scans it with Lens sees exactly what it does: where it connects and
+    which feature it opens.
+    """
+    fields = ["LL1", str(host).strip(), str(int(port)), str(token).strip(), cmd]
+    if via == "relay" and site:
+        fields.append(site.rstrip("/"))
+    return "|".join(fields)
+
+
+def parse_plain(payload: str) -> dict | None:
+    """Parse an LL1 payload (self-check / tests). None when invalid."""
+    if not payload.startswith(PLAIN_PREFIX):
+        return None
+    parts = payload[len("LL1"):].split("|")
+    if len(parts) < 5:
+        return None
+    _, host, port, token, feature = parts[:5]
+    if not host or not port.isdigit() or feature not in PLAIN_FEATURES:
+        return None
+    out = {"host": host, "port": int(port), "t": token, "cmd": feature}
+    if len(parts) > 5 and parts[5]:
+        out["site"] = parts[5]
+        out["via"] = "relay"
+    else:
+        out["via"] = "direct"
+    return out
 
 
 def crypto_available() -> bool:

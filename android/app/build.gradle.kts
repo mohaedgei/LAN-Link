@@ -11,8 +11,8 @@ android {
         applicationId = "com.lanlink.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "2.1.1"
+        versionCode = 7
+        versionName = "3.0.0"
     }
 
     buildTypes {

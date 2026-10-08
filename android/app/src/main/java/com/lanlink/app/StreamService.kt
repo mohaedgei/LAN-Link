@@ -266,9 +266,23 @@ class StreamService : LifecycleService() {
             }
             "front" -> startCamera(front = true)
             "back" -> startCamera(front = false)
+            else -> {
+                // "any": the QR opened the connection but picked no feature —
+                // the PC viewer chooses it (Screen / Front / Back buttons).
+                this.feature = featureName
+                sendStatus("waiting-feature")
+                StreamStatus.set("Connected — pick the feature on the PC viewer")
+                return
+            }
         }
         this.feature = featureName
         sendStatus("capture-started")
+        if (featureName == "screen") {
+            // tell the viewer whether remote control is armed on this phone
+            sendStatus(
+                if (ControlAccessibilityService.isReady()) "control-ready" else "control-off"
+            )
+        }
         StreamStatus.set("Streaming $featureName")
     }
 

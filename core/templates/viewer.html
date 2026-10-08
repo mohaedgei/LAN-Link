@@ -72,6 +72,13 @@
   .ghost:hover { color: var(--txt); border-color: var(--acc); }
   .hint { color: var(--faint); font-size: 12px; margin-top: 10px; text-align: center; }
 
+  #ctrlBanner { display: none; margin-bottom: 12px; padding: 11px 14px; border-radius: 12px;
+               font-size: 13px; line-height: 1.6; }
+  #ctrlBanner.off { display: block; background: #3d1414; border: 1px solid #7f1d1d; color: #fecaca; }
+  #ctrlBanner.on  { display: block; background: #0d2c1a; border: 1px solid #1e4630; color: #bbf7d0; }
+  #ctrlBanner b { color: #fff; }
+  #ctrlBanner.on b { color: var(--acc2); }
+
   /* ---------- control ---------- */
   .ctrl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                gap: 10px; margin-bottom: 16px; }
@@ -162,6 +169,7 @@
 
   <!-- ============ LIVE ============ -->
   <section id="tab-live">
+    <div id="ctrlBanner"></div>
     <div class="featbar">
       <button data-f="screen" id="bScreen">Screen share</button>
       <button data-f="front"  id="bFront">Front camera</button>
@@ -185,7 +193,7 @@
         </div>
       </div>
     </div>
-    <p class="hint">Tap the video to tap the phone &middot; drag to swipe &middot; full remote control lives in the <b>Remote control</b> tab</p>
+    <p class="hint">Tap the video to tap the phone &middot; drag to swipe &middot; mouse wheel scrolls &middot; full remote control lives in the <b>Remote control</b> tab</p>
   </section>
 
   <!-- ============ REMOTE CONTROL ============ -->
@@ -239,8 +247,8 @@
     <div class="panel steps">
       <h3>Install in 3 steps</h3>
       <div class="step"><span><b>Download the APK</b> using the button above (if your phone asks, allow <b>Install unknown apps</b> for your browser).</span></div>
-      <div class="step"><span><b>Install and open LAN-Link</b>, then fill the IP, port and session code shown in the terminal &mdash; or just <b>scan the QR</b>. The app remembers everything for next time.</span></div>
-      <div class="step"><span><b>Pick a feature</b> (screen share or a camera), allow the permission and the dashboard starts streaming instantly.</span></div>
+      <div class="step"><span><b>Install and open LAN-Link</b> &mdash; it is a pure QR reader. Point it at the QR on the PC screen (or use <b>Decode QR from a picture</b> for a screenshot) and the connection starts by itself.</span></div>
+      <div class="step"><span><b>Watch it stream</b> here instantly. The QR itself tells the phone which feature opens: screen share, front or back camera.</span></div>
     </div>
   </section>
 
@@ -249,11 +257,18 @@
     <div class="panel faq">
       <details open>
         <summary>How do I connect the phone?</summary>
-        <p>Start the server in the terminal (<code>python lanlink.py</code> &rarr; option 2). A QR code appears. Open the LAN-Link app on the phone and scan it, or copy the IP / port / session code into the app fields. From then on the app keeps the values saved &mdash; next runs are one tap.</p>
+        <p>Start the server in the terminal (<code>python lanlink.py</code>). A QR code appears containing a simple readable payload like <code>LL1|192.168.1.10|8080|ab12cd|screen</code> — IP, port, session code and the feature to open. Open the LAN-Link app and scan it: the connection starts automatically.</p>
+      </details>
+      <details>
+        <summary>How do I control the phone from this page (like scrcpy)?</summary>
+        <p>Two one-time switches on the phone make control work:<br>
+        1. <b>Settings &rarr; Accessibility &rarr; LAN-Link Control &rarr; ON</b> — this injects taps, swipes and keys.<br>
+        2. <b>Settings &rarr; System &rarr; Keyboards &rarr; LAN-Link Text</b> — this types text.<br>
+        Then restart screen share. A banner on the Live tab tells you whether control is ON or OFF. Once armed: tap the video to tap the phone, drag to swipe, mouse wheel scrolls, and the Remote control tab has Back / Home / Recents / zoom / typing.</p>
       </details>
       <details>
         <summary>The video says &ldquo;waiting for your phone&rdquo;</summary>
-        <p>The server is up but the app is not streaming yet. Open the app and press one of the three feature buttons (screen share needs the media-permission popup approved). Check that both devices are on the same WiFi and that the IP in the app matches the one printed in the terminal.</p>
+        <p>The server is up but the app is not streaming yet. Scan the QR again with the app (screen share shows one system confirmation popup &mdash; press <b>Start now</b>). Check that both devices are on the same WiFi.</p>
       </details>
       <details>
         <summary>Remote control does nothing</summary>
@@ -292,6 +307,7 @@
       devDot = document.getElementById("devDot"), devStat = document.getElementById("devStat"),
       toastEl = document.getElementById("toast");
   var frames = 0, lastFps = Date.now(), downPos = null, curRes = "";
+  var lastImgW = 0, lastImgH = 0, ctrlBanner = document.getElementById("ctrlBanner");
 
   function toast(msg, ok) {
     toastEl.textContent = msg; toastEl.style.display = "block";
@@ -324,6 +340,7 @@
         createImageBitmap(ev.data).then(function (img) {
           canvas.width = img.width; canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
+          lastImgW = img.width; lastImgH = img.height;
           overlay.style.display = "none";
           frames++;
           curRes = img.width + "\u00d7" + img.height;
@@ -336,6 +353,15 @@
           if (msg.value === "device-disconnected") { devDot.className = "dot"; devStat.textContent = "device disconnected"; }
           if (msg.value === "no-device") { toast("No phone connected yet — scan the QR with the LAN-Link app"); }
           if (msg.value === "capture-started") { devStat.textContent = "streaming"; toast("Stream started", true); }
+        if (msg.value === "control-off") {
+          ctrlBanner.className = "off";
+          ctrlBanner.innerHTML = "<b>Remote control is OFF on the phone.</b> Taps/swipes only work after you enable it once: phone <b>Settings &rarr; Accessibility &rarr; LAN-Link Control &rarr; ON</b>, then restart screen share.";
+        }
+        if (msg.value === "control-ready") {
+          ctrlBanner.className = "on";
+          ctrlBanner.innerHTML = "<b>Remote control is ON</b> — tap, drag, scroll and type on the video like scrcpy.";
+        }
+        if (msg.value === "waiting-feature") { toast("Phone connected — pick a feature above"); }
         }
       }
     };
@@ -388,7 +414,26 @@
     };
   });
 
-  /* ---------- touch on the live video ---------- */
+  /* ---------- touch on the live video (scrcpy-style) ----------
+     The canvas uses object-fit: contain, so the drawn image is
+     letterboxed inside the element. All coordinates are computed
+     against the DRAWN image rectangle, not the element box —
+     otherwise taps land in the wrong place. */
+  function imageRect(e) {
+    var r = canvas.getBoundingClientRect();
+    var x, y, w, h;
+    if (lastImgW && lastImgH) {
+      var scale = Math.min(r.width / lastImgW, r.height / lastImgH);
+      w = lastImgW * scale; h = lastImgH * scale;
+      x = r.left + (r.width - w) / 2; y = r.top + (r.height - h) / 2;
+    } else { x = r.left; y = r.top; w = r.width; h = r.height; }
+    return { x: x, y: y, w: w, h: h };
+  }
+  function pos(e) {
+    var im = imageRect(e);
+    return { x: Math.min(Math.max((e.clientX - im.x) / im.w, 0), 1),
+             y: Math.min(Math.max((e.clientY - im.y) / im.h, 0), 1) };
+  }
   canvas.addEventListener("pointerdown", function (e) { downPos = pos(e); });
   canvas.addEventListener("pointerup", function (e) {
     if (!downPos) return;
@@ -400,11 +445,11 @@
     }
     downPos = null;
   });
-  function pos(e) {
-    var r = canvas.getBoundingClientRect();
-    return { x: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1),
-             y: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1) };
-  }
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var d = e.deltaY > 0 ? 1 : -1;   // down = finger slides up (content scrolls down)
+    send({ type: "swipe", x1: 0.5, y1: 0.5 - d * 0.12, x2: 0.5, y2: 0.5 + d * 0.12, ms: 180 });
+  }, { passive: false });
 
   /* ---------- stats (fps + /status poll) ---------- */
   setInterval(function () {

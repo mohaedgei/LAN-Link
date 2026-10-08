@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.View
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,28 +25,22 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 
 /**
- * LAN-Link v2.1 — a real QR Code Reader with an encrypted second layer.
+ * LAN-Link v3.0 — a PURE QR Code Reader. One screen, nothing else.
  *
- * MAIN SCREEN (like every QR reader app):
- *   - full-screen live camera preview
- *   - continuous in-app scanning — no extra button, just point and hold
- *   - "decode from picture" for gallery / screenshots
- *   - normal QRs (web links, wifi, text) are shown in a reader dialog
- *
- * ENCRYPTED LAYER (only this app has the key):
- *   a QL1 payload decrypts to {cmd, host, port, t, exp, via} and the app
- *   connects IMMEDIATELY in the background — no typing, no forms. The
- *   connection lives in a foreground service that keeps retrying until
- *   the PC script is closed.
+ *  - full-screen live camera preview, continuous scanning
+ *  - a LAN-Link QR (marker `LL1|ip|port|token|feature`) connects
+ *    IMMEDIATELY in the background — the QR decides everything:
+ *    the address, the session and which feature opens (screen /
+ *    front / back). No buttons, no forms, no chooser panels.
+ *  - any other QR is displayed like a normal reader would.
+ *  - the connection lives in a foreground service that keeps
+ *    retrying until the PC script is closed.
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
-    private lateinit var scanPanel: View
-    private lateinit var controlPanel: View
     private lateinit var statusText: TextView
     private lateinit var connStatus: TextView
-    private lateinit var targetText: TextView
 
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private var cameraProvider: ProcessCameraProvider? = null
@@ -58,13 +51,13 @@ class MainActivity : AppCompatActivity() {
     /** Feature waiting for a runtime permission before it can start. */
     private var pendingFeature: String? = null
 
-    // -- connection target (filled by the encrypted QR, remembered locally) --
+    // -- connection target (filled by the QR, remembered locally) ----------
     private var host = ""
     private var port = ""
     private var token = ""
     private var site = ""      // relay base URL (empty = direct LAN)
 
-    // -- activity result launchers --------------------------------------
+    // -- activity result launchers -----------------------------------------
 
     private val imagePicker =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -86,12 +79,11 @@ class MainActivity : AppCompatActivity() {
             pendingFeature = null
             when {
                 granted -> {
-                    startCamera()
-                    if (feature != null) launchService(feature)
+                    if (feature != null) launchService(feature) else startCamera()
                 }
                 else -> {
                     statusText.text = "Camera permission is required to scan"
-                    Toast.makeText(this, "Camera permission denied — tap the frame to retry", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Camera permission denied — reopen the app to retry", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -99,42 +91,18 @@ class MainActivity : AppCompatActivity() {
     private val notificationsPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    // -- lifecycle -------------------------------------------------------
+    // -- lifecycle -----------------------------------------------------------
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         previewView = findViewById(R.id.preview)
-        scanPanel = findViewById(R.id.scanPanel)
-        controlPanel = findViewById(R.id.controlPanel)
         statusText = findViewById(R.id.statusText)
         connStatus = findViewById(R.id.connStatus)
-        targetText = findViewById(R.id.targetText)
 
-        findViewById<Button>(R.id.btnPickImage).setOnClickListener { imagePicker.launch("image/*") }
-        findViewById<Button>(R.id.btnScreen).setOnClickListener { startFeature("screen") }
-        findViewById<Button>(R.id.btnFront).setOnClickListener { startFeature("front") }
-        findViewById<Button>(R.id.btnBack).setOnClickListener { startFeature("back") }
-        findViewById<Button>(R.id.btnStop).setOnClickListener {
-            stopService(Intent(this, StreamService::class.java))
-            connStatus.text = "Stopped"
-        }
-        findViewById<Button>(R.id.btnRescan).setOnClickListener {
-            lastPayload = null
-            showScan()
-        }
-        // tapping the dimmed frame re-requests a denied camera permission
-        scanPanel.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
-        }
+        findViewById<View>(R.id.btnPickImage).setOnClickListener { imagePicker.launch("image/*") }
 
-        loadTarget()
-        if (hasTarget()) showControl() else showScan()
         requestNotificationPermissionIfNeeded()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -148,8 +116,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        StreamStatus.listener = { connStatus.text = it }
-        connStatus.text = StreamStatus.text
+        StreamStatus.listener = { value ->
+            connStatus.visibility = View.VISIBLE
+            connStatus.text = value
+        }
+        if (StreamStatus.text != "Idle") {
+            connStatus.visibility = View.VISIBLE
+            connStatus.text = StreamStatus.text
+        }
     }
 
     override fun onPause() {
@@ -166,9 +140,9 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    // ------------------------------------------------------------------
+    // --------------------------------------------------------------------
     // Live camera scanning (the heart of the reader)
-    // ------------------------------------------------------------------
+    // --------------------------------------------------------------------
 
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
@@ -182,7 +156,6 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    /** Bind preview + analysis when the scan panel is visible. */
     private fun bindScanner() {
         val provider = cameraProvider ?: return
         if (cameraBound) return
@@ -200,15 +173,6 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             statusText.text = "Camera error: ${e.message}"
         }
-    }
-
-    private fun unbindScanner() {
-        if (!cameraBound) return
-        try {
-            cameraProvider?.unbindAll()
-        } catch (_: Exception) {
-        }
-        cameraBound = false
     }
 
     private fun analyze(image: androidx.camera.core.ImageProxy) {
@@ -254,56 +218,76 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    // ------------------------------------------------------------------
-    // QR routing — normal reader behaviour vs the encrypted layer
-    // ------------------------------------------------------------------
+    // --------------------------------------------------------------------
+    // QR routing — LAN-Link marker vs a normal reader result
+    // --------------------------------------------------------------------
 
     private fun handleQrText(raw: String) {
         val payload = raw.trim()
 
-        // ---- encrypted layer: only QL1 payloads trigger the connection --
-        val json = Ql1.decrypt(payload)
-        if (json != null) {
-            handleLanLinkPayload(json)
+        // ---- LAN-Link marker: LL1|ip|port|token|feature[|site] -----------
+        if (payload.startsWith("LL1|")) {
+            val parsed = parseLanLink(payload)
+            if (parsed == null) {
+                Toast.makeText(this, "This LAN-Link QR is malformed", Toast.LENGTH_LONG).show()
+                return
+            }
+            handleLanLinkPayload(parsed)
             return
         }
 
-        // ---- normal QR: behave exactly like a plain QR Code Reader ------
+        // ---- normal QR: behave exactly like a plain QR Code Reader -------
         showPlainResult(payload)
     }
 
-    private fun handleLanLinkPayload(json: org.json.JSONObject) {
-        // QRs expire after 24h (set by the generator)
-        val exp = json.optLong("exp", 0L)
-        if (exp in 1..System.currentTimeMillis() / 1000) {
-            Toast.makeText(this, "This QR has expired — generate a fresh one", Toast.LENGTH_LONG).show()
-            return
-        }
+    /** LL1|ip|port|token|feature[|site] -> map, or null when malformed. */
+    private fun parseLanLink(payload: String): Map<String, String>? {
+        val parts = payload.split("|")
+        if (parts.size < 5) return null
+        val host = parts[1].trim()
+        val port = parts[2].trim()
+        val token = parts[3].trim()
+        val feature = parts[4].trim()
+        val site = if (parts.size > 5) parts[5].trim() else ""
+        if (host.isEmpty() || port.toIntOrNull() == null) return null
+        if (feature !in listOf("screen", "front", "back", "any")) return null
+        return mapOf(
+            "host" to host, "port" to port, "t" to token,
+            "cmd" to feature, "site" to site
+        )
+    }
 
-        val newHost = json.optString("host", "").trim()
-        val newPort = json.optInt("port", 8080).toString()
-        val newToken = json.optString("t", "").trim()
-        val newSite = json.optString("site", "").trim()
-        val via = json.optString("via", "direct")
-        if (newHost.isEmpty()) {
-            Toast.makeText(this, "QR has no server address inside", Toast.LENGTH_LONG).show()
-            return
-        }
+    private fun handleLanLinkPayload(qr: Map<String, String>) {
+        val newHost = qr["host"].orEmpty()
+        val newPort = qr["port"].orEmpty()
+        val newToken = qr["t"].orEmpty()
+        val newSite = qr["site"].orEmpty()
 
         host = newHost
         port = newPort
         if (newToken.isNotEmpty()) token = newToken
-        site = if (via == "relay") newSite else ""
+        site = newSite
         saveTarget()
 
-        Toast.makeText(this, "LAN-Link target: $host:$port", Toast.LENGTH_SHORT).show()
-        showControl()
+        Toast.makeText(this, "LAN-Link → $host:$port", Toast.LENGTH_SHORT).show()
 
-        // A QR can carry a specific command (screen / front / back) —
-        // it starts automatically. cmd "any" leaves the choice on screen.
-        val cmd = json.optString("cmd", "any")
-        if (cmd == "screen" || cmd == "front" || cmd == "back") {
-            connStatus.postDelayed({ startFeature(cmd) }, 400)
+        // The QR decides the feature — it starts automatically.
+        when (val cmd = qr["cmd"].orEmpty()) {
+            "screen" -> {
+                val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                consentLauncher.launch(manager.createScreenCaptureIntent())
+            }
+            "front", "back" -> {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED
+                ) {
+                    launchService(cmd)
+                } else {
+                    pendingFeature = cmd
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+            else -> launchService("any")   // feature chosen from the PC viewer
         }
     }
 
@@ -335,36 +319,9 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // ------------------------------------------------------------------
-    // Panels + target persistence
-    // ------------------------------------------------------------------
-
-    private fun hasTarget() = host.isNotEmpty() && port.isNotEmpty()
-
-    private fun showScan() {
-        unbindScanner()
-        controlPanel.visibility = View.GONE
-        scanPanel.visibility = View.VISIBLE
-        statusText.text = getString(R.string.status_idle)
-        bindScanner()
-    }
-
-    private fun showControl() {
-        unbindScanner()   // save battery while the control panel is up
-        scanPanel.visibility = View.GONE
-        controlPanel.visibility = View.VISIBLE
-        targetText.text = if (site.isEmpty()) "$host:$port"
-                          else "$host:$port\n(via $site)"
-        connStatus.text = StreamStatus.text
-    }
-
-    private fun loadTarget() {
-        val p = getSharedPreferences("lanlink", MODE_PRIVATE)
-        host = p.getString("host", "").orEmpty()
-        port = p.getString("port", "").orEmpty()
-        token = p.getString("token", "").orEmpty()
-        site = p.getString("site", "").orEmpty()
-    }
+    // --------------------------------------------------------------------
+    // Target persistence
+    // --------------------------------------------------------------------
 
     private fun saveTarget() {
         getSharedPreferences("lanlink", MODE_PRIVATE).edit()
@@ -375,30 +332,9 @@ class MainActivity : AppCompatActivity() {
             .apply()
     }
 
-    // ------------------------------------------------------------------
-    // Feature start flows (screen / front / back)
-    // ------------------------------------------------------------------
-
-    private fun startFeature(feature: String) {
-        if (!hasTarget()) {
-            Toast.makeText(this, "Scan the QR first", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (feature == "screen") {
-            val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            consentLauncher.launch(manager.createScreenCaptureIntent())
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED
-            ) {
-                launchService(feature)
-            } else {
-                pendingFeature = feature
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
-        }
-    }
+    // --------------------------------------------------------------------
+    // Service launch
+    // --------------------------------------------------------------------
 
     private fun launchService(feature: String, resultCode: Int = Int.MIN_VALUE, data: Intent? = null) {
         val intent = Intent(this, StreamService::class.java).apply {
@@ -413,6 +349,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         ContextCompat.startForegroundService(this, intent)
+        connStatus.visibility = View.VISIBLE
         connStatus.text = "Connecting to $host:$port ..."
     }
 

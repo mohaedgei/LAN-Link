@@ -1,233 +1,99 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v3.0 — the app IS a QR reader. One screen, nothing else:
+     camera preview + scan frame + a small status line. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_dark">
 
-    <!-- ============================================================= -->
-    <!-- PANEL 1 — the QR reader (like any QR Code Reader app)         -->
-    <!-- ============================================================= -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- the bright scan frame that guides the eye -->
     <FrameLayout
-        android:id="@+id/scanPanel"
+        android:layout_width="260dp"
+        android:layout_height="260dp"
+        android:layout_gravity="center"
+        android:background="@drawable/scan_frame" />
+
+    <!-- top: brand + camera/scanner status -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="top"
+        android:padding="20dp"
+        android:background="#66000000">
 
-        <androidx.camera.view.PreviewView
-            android:id="@+id/preview"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-        <!-- dim overlay above/below the scan box is skipped for
-             simplicity — the bright frame below guides the eye -->
-        <FrameLayout
-            android:layout_width="260dp"
-            android:layout_height="260dp"
-            android:layout_gravity="center"
-            android:background="@drawable/scan_frame" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_gravity="top"
-            android:padding="20dp"
-            android:background="#66000000">
+            android:text="@string/app_name"
+            android:textColor="@color/primary"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="@color/primary"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace" />
-
-            <TextView
-                android:id="@+id/statusText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/status_idle"
-                android:textColor="@color/text_dim"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_gravity="bottom"
-            android:background="#66000000"
-            android:padding="20dp">
+            android:layout_marginTop="4dp"
+            android:text="@string/status_idle"
+            android:textColor="@color/text_dim"
+            android:textSize="13sp" />
+    </LinearLayout>
 
-            <TextView
-                android:id="@+id/scanHint"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:gravity="center"
-                android:text="@string/scanner_hint"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="12dp"
-                android:text="@string/encrypted_hint_short"
-                android:textColor="@color/text_dim"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnPickImage"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:backgroundTint="@color/surface_dark"
-                android:text="@string/btn_pick_image"
-                android:textColor="@color/primary"
-                android:textSize="14sp" />
-        </LinearLayout>
-    </FrameLayout>
-
-    <!-- ============================================================= -->
-    <!-- PANEL 2 — connected control panel                             -->
-    <!-- ============================================================= -->
-    <ScrollView
-        android:id="@+id/controlPanel"
+    <!-- bottom: hint + live connection status + small gallery icon -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        android:fillViewport="true">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:background="#66000000"
+        android:padding="16dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/connStatus"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:layout_gravity="center_horizontal"
+            android:gravity="center"
+            android:text="@string/scanner_hint"
+            android:textColor="@color/primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="@color/primary"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/scanner_hint"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/tagline"
-                android:textColor="@color/text_dim"
-                android:textSize="12sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:text="@string/reader_hint_short"
+            android:textColor="@color/text_dim"
+            android:textSize="11.5sp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:orientation="vertical"
-                android:background="@drawable/card_bg"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/target_label"
-                    android:textColor="@color/text_dim"
-                    android:textSize="12sp"
-                    android:letterSpacing="0.1" />
-
-                <TextView
-                    android:id="@+id/targetText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/target_label"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:fontFamily="monospace" />
-
-                <TextView
-                    android:id="@+id/connStatus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/status_idle"
-                    android:textColor="@color/primary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="10dp"
-                android:text="@string/actions_label"
-                android:textColor="@color/text_dim"
-                android:textSize="12sp"
-                android:letterSpacing="0.1" />
-
-            <Button
-                android:id="@+id/btnScreen"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:backgroundTint="@color/primary_variant"
-                android:text="@string/btn_screen"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-
-            <Button
-                android:id="@+id/btnFront"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:layout_marginTop="10dp"
-                android:backgroundTint="@color/primary_variant"
-                android:text="@string/btn_front"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-
-            <Button
-                android:id="@+id/btnBack"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:layout_marginTop="10dp"
-                android:backgroundTint="@color/primary_variant"
-                android:text="@string/btn_back"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-
-            <Button
-                android:id="@+id/btnStop"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="18dp"
-                android:backgroundTint="@color/surface_dark"
-                android:text="@string/btn_stop"
-                android:textColor="@color/accent_red"
-                android:textSize="14sp" />
-
-            <Button
-                android:id="@+id/btnRescan"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="@color/surface_dark"
-                android:text="@string/btn_rescan"
-                android:textColor="@color/text_dim"
-                android:textSize="13sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="28dp"
-                android:text="@string/footer_credit"
-                android:textColor="@color/text_dim"
-                android:textSize="11sp" />
-        </LinearLayout>
-    </ScrollView>
+        <Button
+            android:id="@+id/btnPickImage"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:backgroundTint="@color/surface_dark"
+            android:text="@string/btn_pick_image"
+            android:textColor="@color/primary"
+            android:textSize="12.5sp" />
+    </LinearLayout>
 </FrameLayout>

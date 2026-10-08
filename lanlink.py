@@ -207,18 +207,13 @@ def menu(handle) -> str:
 
 def make_qr_and_wait(handle, cmd: str, via: str) -> None:
     ip, port, token = handle.host, handle.port, handle.token
-    payload = qrcrypto.encrypt_ql1(cmd, ip, port, token, via=via, site=config.SITE_URL)
-    if payload is None:
-        print()
-        print(f"  {RED}[!]{RESET} The encrypted QR needs one small crypto library:")
-        print(f"        {BRIGHT}pip install pycryptodome{RESET}")
-        print("      then run this option again — or generate the QR online:")
-        print(f"        {GREEN}{config.SITE_URL}{RESET}")
-        return
+    # v3.0: plain, human-readable payload — LL1|ip|port|token|feature.
+    # No crypto library needed and any scanner shows what it does.
+    payload = qrcrypto.build_plain(cmd, ip, port, token, via=via, site=config.SITE_URL)
 
     clear_screen()
     print(f"{GREEN}{BRIGHT}{BANNER}{RESET}")
-    print(f"  {GREEN}{BRIGHT}[OK] ENCRYPTED QR READY{RESET}")
+    print(f"  {GREEN}{BRIGHT}[OK] LAN-LINK QR READY{RESET}")
     line()
     label = config.FEATURE_LABELS.get(cmd, "Your choice in the app")
     route = "direct" if via == "direct" else f"via {config.SITE_URL}"
