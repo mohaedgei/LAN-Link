@@ -135,13 +135,40 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (_: Exception) {
         }
+        applySavedConnection()
         if (editPort.text.isEmpty()) editPort.setText("8080")
+    }
+
+    /**
+     * Values remembered from the previous session: the session code always
+     * comes back, host/port only fill what the bundled defaults left empty
+     * (so option 1 always wins when it runs with a fresh IP).
+     */
+    private fun applySavedConnection() {
+        val p = getSharedPreferences("lanlink", MODE_PRIVATE)
+        if (editToken.text.isEmpty()) editToken.setText(p.getString("token", ""))
+        if (editHost.text.isEmpty()) editHost.setText(p.getString("host", ""))
+        if (editPort.text.isEmpty()) editPort.setText(p.getString("port", ""))
+    }
+
+    /** Persist whatever the app is about to connect with. */
+    private fun rememberConnection(host: String, port: String, token: String) {
+        getSharedPreferences("lanlink", MODE_PRIVATE).edit()
+            .putString("host", host)
+            .putString("port", port)
+            .putString("token", token)
+            .apply()
     }
 
     private fun applyConnection(host: String, port: String, token: String) {
         if (host.isNotEmpty()) editHost.setText(host)
         if (port.isNotEmpty()) editPort.setText(port)
         if (token.isNotEmpty()) editToken.setText(token.trim().uppercase())
+        rememberConnection(
+            editHost.text.toString().trim(),
+            editPort.text.toString().trim(),
+            editToken.text.toString().trim()
+        )
     }
 
     /**
@@ -192,10 +219,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchService(feature: String, resultCode: Int = Int.MIN_VALUE, data: Intent? = null) {
+        val host = editHost.text.toString().trim()
+        val port = editPort.text.toString().trim()
+        val token = editToken.text.toString().trim()
+        rememberConnection(host, port, token)
         val intent = Intent(this, StreamService::class.java).apply {
-            putExtra(StreamService.EXTRA_HOST, editHost.text.toString().trim())
-            putExtra(StreamService.EXTRA_PORT, editPort.text.toString().trim().toIntOrNull() ?: 8080)
-            putExtra(StreamService.EXTRA_TOKEN, editToken.text.toString().trim())
+            putExtra(StreamService.EXTRA_HOST, host)
+            putExtra(StreamService.EXTRA_PORT, port.toIntOrNull() ?: 8080)
+            putExtra(StreamService.EXTRA_TOKEN, token)
             putExtra(StreamService.EXTRA_FEATURE, feature)
             if (feature == "screen" && resultCode != Int.MIN_VALUE) {
                 putExtra(StreamService.EXTRA_RESULT_CODE, resultCode)

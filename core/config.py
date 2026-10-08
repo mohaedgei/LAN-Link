@@ -1,9 +1,10 @@
 """Paths, constants and small property-file helpers for LAN-Link."""
 
+import secrets
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "1.0.2"
+VERSION = "1.1.0"
 
 # Project root = parent of the "core" package folder
 ROOT = Path(__file__).resolve().parent.parent
@@ -12,6 +13,7 @@ ANDROID_DIR = ROOT / "android"
 ASSETS_DIR = ANDROID_DIR / "app" / "src" / "main" / "assets"
 APP_PROPERTIES_FILE = ASSETS_DIR / "lanlink.properties"
 DIST_DIR = ROOT / "dist"
+TOKEN_FILE = ROOT / "lanlink.token"
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 DEFAULT_PORT = 8080
@@ -27,6 +29,38 @@ APK_CANDIDATES = (
     DIST_DIR / "LAN-Link.apk",
     ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
 )
+
+
+def apk_size_mb() -> str:
+    """Human-readable size of the locally available APK (empty if none)."""
+    apk = find_apk()
+    if apk is None:
+        return ""
+    try:
+        return f"{apk.stat().st_size / (1024 * 1024):.1f} MB"
+    except OSError:
+        return ""
+
+
+def load_or_create_token(force_new: bool = False) -> str:
+    """Stable session code: created once, reused on every run.
+
+    The Android app saves it after the first connection, so pairing is
+    a one-time step. Pass force_new=True (CLI: --new-token) to rotate it.
+    """
+    if not force_new:
+        try:
+            saved = TOKEN_FILE.read_text(encoding="utf-8").strip()
+            if saved:
+                return saved
+        except OSError:
+            pass
+    token = secrets.token_hex(3)  # 6 hex chars, short enough to type
+    try:
+        TOKEN_FILE.write_text(token + "\n", encoding="utf-8")
+    except OSError:
+        pass  # read-only location: fall back to per-run tokens
+    return token
 
 
 def find_apk():

@@ -38,9 +38,19 @@ A small Python script drives everything:
 - **QR pairing** — one scan connects the phone to the PC; the QR also
   deep-links into the app via Google Lens.
 - **Three buttons, nothing more** — screen / front camera / back camera.
-- **Dual viewer** — browser page (with on-screen control bar) and a
-  native OpenCV window with keyboard/mouse control.
-- **Session token** — every session generates a 6-char code; devices
+- **Full web dashboard** — the viewer page is a complete control center
+  with four tabs: **Live** (stream + feature switches + fullscreen),
+  **Remote control** (navigation keys, zoom, text typing with quick
+  phrases), **Get the app** (in-page APK download) and **Help**.
+- **Ready-made APK** — a built `LAN-Link.apk` ships in `dist/`, and the
+  green “⬇ Get the app” button on every page serves it instantly — no
+  build tools needed on any machine.
+- **App remembers your setup** — IP, port and session code are saved by
+  the app after the first pairing; next runs are one tap. The session
+  code itself is stable between runs (`--new-token` rotates it).
+- **Dual viewer** — the web dashboard and a native OpenCV window with
+  keyboard/mouse control.
+- **Session code** — every endpoint is gated by a 6-char code; devices
   without it cannot talk to the server.
 - **100% LAN** — nothing leaves your router.
 
@@ -110,8 +120,10 @@ python lanlink.py
 
 On the PC, pick how to watch:
 
-- **Browser viewer** — opened automatically. Buttons: Screen / Front /
-  Back / Stop, plus Back / Home / Recents, Zoom +/- and a text box.
+- **Browser dashboard** — opened automatically. Tabs: Live (Screen /
+  Front / Back / Stop + fullscreen), Remote control (Back / Home /
+  Recents / Notifications, Zoom +-, text box with quick phrases),
+  Get the app and Help.
 - **Desktop window** — `python lanlink.py window -p 8080 -t <token> -f screen`
   (the exact command is printed by option 2).
 
@@ -155,10 +167,11 @@ Notes for Termux:
   runs the LAN-Link app. Same WiFi required.
 - If pip fails to build a wheel: `pkg install build-essential` then retry.
 
-## Building the APK — 3 ways
+## Building the APK — 4 ways
 
 | Way | When | How |
 |-----|------|-----|
+| **Ready-made (v1.1.0+)** | Nothing installed at all | A built APK ships in `dist/LAN-Link.apk` — install it directly, or download it from the green button on any LAN-Link web page |
 | Automatic (`python lanlink.py` -> 1) | JDK 17 + Gradle + Android SDK are installed | The script writes `assets/lanlink.properties` and runs `gradle :app:assembleDebug`, copying the APK to `dist/` |
 | Android Studio | Daily development | Open the `android/` folder, *Build > Build APK(s)* |
 | GitHub Actions | Nothing installed locally | Activate the build workflow once (below), then every push uploads the APK as an artifact |
@@ -200,9 +213,9 @@ connection defaults and prints guidance. Use the GitHub Actions path above
   an explicit on-device permission (MediaProjection consent dialog,
   camera permission) and remote control needs Accessibility + IME to be
   enabled manually in system settings. That is by design.
-- The session token gates every endpoint; a new token is generated each
-  time option 2 runs. Only devices that scanned the current QR can
-  connect.
+- The session code gates every endpoint. It is created once and reused
+  between runs so the app keeps working without re-pairing; rotate it
+  anytime with `python lanlink.py start --new-token`.
 - Traffic is plain HTTP/WS on your LAN — do not expose the port to the
   internet (no port forwarding).
 
@@ -269,6 +282,11 @@ connection defaults and prints guidance. Use the GitHub Actions path above
 
 ### تفعيل بيلد الـ APK أوتوماتيك من GitHub (مرة واحدة، 30 ثانية)
 
+> **جديد في v1.1.0:** في **APK جاهز ومبني** جوه المشروع في
+> `dist/LAN-Link.apk` — ثبّته على طول من غير أي أدوات، أو نزّله من زرار
+> **"⬇ Get the app"** الأخضر في أي صفحة من صفحات LAN-Link. والتطبيق نفسه
+> بيحفظ الـ IP والبورت والكود بعد أول اتصال — يعني مرة واحدة وبس.
+
 1. افتح ملف `docs/android-build-workflow.yml.txt` في الريبو وانقل محتواه.
 2. على GitHub: **Add file > Create new file** → سمّيه
    `.github/workflows/android-build.yml`
@@ -320,7 +338,9 @@ python lanlink.py
 
 ### الأمان
 
-- كل الطلبات محمية بكود جلسة (6 حروف) بيتولد مع كل تشغيل للخيار 2.
+- كل الطلبات محمية بكود جلسة (6 حروف). الكود بيتحفظ وبيفضل ثابت بين
+  التشغيلات عشان التطبيق ميحتاج إعادة اقتران — وبتقدر تغيّره في أي وقت
+  بـ `python lanlink.py start --new-token`.
 - حافظ على البورت داخل الشبكة المحلية — لا تعمل port forwarding.
 
 ### الصانع

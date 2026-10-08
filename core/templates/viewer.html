@@ -2,111 +2,283 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LAN-Link Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06130c">
+<title>LAN-Link Dashboard</title>
 <style>
-  :root { color-scheme: dark; --bg:#06130c; --card:#0d2416; --line:#1e4630;
-          --txt:#eaf7ef; --dim:#93c4a8; --acc:#22c55e; --acc2:#4ade80; }
+  :root { color-scheme: dark; --bg:#06130c; --card:#0d2416; --card2:#081c10;
+          --line:#1e4630; --txt:#eaf7ef; --dim:#93c4a8; --faint:#5c8a70;
+          --acc:#22c55e; --acc2:#4ade80; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body { background: radial-gradient(1200px 600px at 50% -10%, #0a2415 0%, var(--bg) 55%);
          color: var(--txt); font-family: system-ui, "Segoe UI", Roboto, sans-serif;
          min-height: 100vh; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 12px; padding: 12px 18px;
-           background: rgba(13,36,22,.9); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+
+  /* ---------- header ---------- */
+  header { position: sticky; top: 0; z-index: 10; background: rgba(9,26,16,.96);
+           border-bottom: 1px solid var(--line); padding: 10px 16px; backdrop-filter: blur(6px); }
+  .hrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
   .brand svg { filter: drop-shadow(0 0 6px rgba(34,197,94,.6)); }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: #274434; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #274434; flex: none; }
   .dot.on { background: var(--acc2); box-shadow: 0 0 10px var(--acc2); }
-  .feat { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  button { background: #12301e; color: var(--txt); border: 1px solid var(--line);
-           padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
+  #devStat { color: var(--dim); font-size: 12.5px; }
+  .spacer { margin-left: auto; }
+  .apk { text-decoration: none; color: #04170b; font-weight: 700; font-size: 13px;
+         background: linear-gradient(135deg,#22c55e,#84cc16); padding: 9px 14px;
+         border-radius: 10px; box-shadow: 0 4px 14px rgba(34,197,94,.35); white-space: nowrap; }
+  .apk:hover { filter: brightness(1.08); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { background: var(--card2); border: 1px solid var(--line); color: var(--dim);
+          font-size: 11px; padding: 4px 9px; border-radius: 999px; }
+  .chip b { color: var(--acc2); font-weight: 600; }
+
+  /* ---------- tabs ---------- */
+  nav { display: flex; gap: 4px; padding: 8px 12px 0; max-width: 1060px; margin: 0 auto; width: 100%; }
+  nav button { background: transparent; border: none; border-bottom: 2px solid transparent;
+               color: var(--dim); font-size: 13.5px; padding: 10px 14px; cursor: pointer;
+               border-radius: 0; font-weight: 600; }
+  nav button:hover { color: var(--txt); background: rgba(34,197,94,.06); }
+  nav button.on { color: var(--acc2); border-bottom-color: var(--acc); }
+  main { flex: 1; width: 100%; max-width: 1060px; margin: 0 auto; padding: 16px 14px 30px; }
+  section[hidden] { display: none; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+
+  /* ---------- live ---------- */
+  .featbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button, .btnlike { background: #12301e; color: var(--txt); border: 1px solid var(--line);
+           padding: 9px 15px; border-radius: 10px; font-size: 13px; cursor: pointer;
            transition: background .15s, transform .05s; }
   button:hover { background: #1a4529; }
   button:active { transform: scale(.97); }
   button.active { background: linear-gradient(135deg,#16a34a,#4ade80); color: #04170b;
                   border-color: transparent; font-weight: 700; }
-  .apk { text-decoration: none; color: #04170b; font-weight: 700; font-size: 13px;
-         background: linear-gradient(135deg,#22c55e,#84cc16); padding: 9px 14px;
-         border-radius: 10px; box-shadow: 0 4px 14px rgba(34,197,94,.35); }
-  .apk:hover { filter: brightness(1.08); }
-  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 14px; }
-  #stage { position: relative; max-width: 96vw; max-height: 78vh; }
-  canvas { background: #050d08; border: 1px solid var(--line); border-radius: 14px;
+  button.danger:hover { background: #3d1414; border-color: #7f1d1d; }
+  #stage { position: relative; }
+  canvas { display: block; background: #050d08; border: 1px solid var(--line); border-radius: 14px;
            box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 4px rgba(34,197,94,.06);
-           max-width: 96vw; max-height: 78vh; cursor: crosshair; touch-action: none; }
+           width: 100%; max-height: 72vh; object-fit: contain; cursor: crosshair; touch-action: none; }
   #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
              pointer-events: none; text-align: center; }
-  #overlay .panel { pointer-events: auto; background: rgba(9,28,17,.88); border: 1px solid var(--line);
-                    border-radius: 18px; padding: 26px 30px; backdrop-filter: blur(4px); }
-  #overlay .panel h2 { font-size: 17px; margin-bottom: 8px; color: var(--acc2); }
-  #overlay .panel p { color: var(--dim); font-size: 13.5px; line-height: 1.7; margin-bottom: 14px; }
-  #overlay .panel b { color: var(--txt); }
+  #overlay .cardp { pointer-events: auto; background: rgba(9,28,17,.9); border: 1px solid var(--line);
+                    border-radius: 18px; padding: 26px 30px; backdrop-filter: blur(4px); max-width: 420px; }
+  #overlay h2 { font-size: 17px; margin-bottom: 8px; color: var(--acc2); }
+  #overlay p { color: var(--dim); font-size: 13.5px; line-height: 1.7; margin-bottom: 14px; }
+  #overlay b { color: var(--txt); }
   #overlay .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .ghost { display: inline-block; text-decoration: none; color: var(--dim); font-size: 12.5px;
            border: 1px solid var(--line); padding: 9px 14px; border-radius: 10px; }
   .ghost:hover { color: var(--txt); border-color: var(--acc); }
-  footer { background: rgba(13,36,22,.9); border-top: 1px solid var(--line); padding: 10px 14px;
-           display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-  input[type=text] { background: #081c10; border: 1px solid var(--line); color: var(--txt);
-                     padding: 8px 12px; border-radius: 10px; min-width: 220px; font-size: 13px; }
+  .hint { color: var(--faint); font-size: 12px; margin-top: 10px; text-align: center; }
+
+  /* ---------- control ---------- */
+  .ctrl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+               gap: 10px; margin-bottom: 16px; }
+  .ctrl-grid button { padding: 16px 10px; font-size: 14px; border-radius: 12px; }
+  .ctrl-grid button span { display: block; font-size: 20px; margin-bottom: 6px; }
+  .ctrl-card { padding: 16px; }
+  .ctrl-card h3 { font-size: 14px; color: var(--acc2); margin-bottom: 10px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { background: var(--card2); border: 1px solid var(--line); color: var(--txt);
+                     padding: 10px 12px; border-radius: 10px; flex: 1; min-width: 180px; font-size: 14px; }
   input[type=text]:focus { outline: none; border-color: var(--acc); }
-  .stat { color: var(--dim); font-size: 12px; margin-left: 10px; }
-  .credit { width: 100%; text-align: center; color: #5c8a70; font-size: 11.5px; margin-top: 2px; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .quick button { font-size: 12px; padding: 7px 11px; }
+
+  /* ---------- app ---------- */
+  .dlcard { padding: 26px 22px; text-align: center; margin-bottom: 16px; }
+  .dlcard .big { font-size: 42px; }
+  .dlcard h2 { font-size: 19px; margin: 8px 0 6px; }
+  .dlcard p { color: var(--dim); font-size: 13.5px; margin-bottom: 16px; }
+  .dlcard .apk { font-size: 15px; padding: 14px 26px; display: inline-block; }
+  .dlmeta { color: var(--faint); font-size: 11.5px; margin-top: 10px; }
+  .steps { counter-reset: st; padding: 18px 20px; }
+  .steps h3 { font-size: 15px; margin-bottom: 12px; color: var(--acc2); }
+  .step { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px dashed #143623; font-size: 13.5px;
+          color: var(--dim); line-height: 1.65; }
+  .step:last-child { border-bottom: none; }
+  .step b { color: var(--txt); }
+  .step::before { counter-increment: st; content: counter(st); flex: none; width: 26px; height: 26px;
+                  border-radius: 50%; background: #12301e; border: 1px solid var(--line);
+                  color: var(--acc2); font-weight: 700; font-size: 12.5px;
+                  display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+
+  /* ---------- help ---------- */
+  .faq { padding: 8px 4px; }
+  details { border-bottom: 1px solid #143623; padding: 4px 16px; }
+  details:last-child { border-bottom: none; }
+  summary { cursor: pointer; padding: 12px 0; font-size: 13.5px; font-weight: 600; color: var(--txt); }
+  summary::marker { color: var(--acc); }
+  details p { color: var(--dim); font-size: 13px; line-height: 1.75; padding: 0 0 14px; }
+  details code { background: var(--card2); border: 1px solid var(--line); padding: 1px 6px;
+                 border-radius: 6px; font-size: 12px; color: var(--acc2); }
+
+  /* ---------- footer / toast ---------- */
+  footer { background: rgba(13,36,22,.9); border-top: 1px solid var(--line); padding: 12px 14px;
+           text-align: center; }
+  .credit { color: var(--faint); font-size: 11.5px; line-height: 1.8; }
   .credit a { color: var(--acc); text-decoration: none; font-weight: 600; }
-  #toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
            background: #b91c1c; color: #fff; padding: 9px 16px; border-radius: 10px;
-           font-size: 13px; display: none; z-index: 9; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+           font-size: 13px; display: none; z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  #toast.ok { background: #15803d; }
 </style>
 </head>
 <body>
+
 <header>
-  <div class="brand">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round">
-      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
-      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
-    </svg>
-    LAN-Link
+  <div class="hrow">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round">
+        <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+      </svg>
+      LAN-Link
+    </div>
+    <div class="dot" id="devDot" title="Device connection"></div>
+    <span id="devStat">waiting for device&hellip;</span>
+    <span class="spacer"></span>
+    <a class="apk" href="$apk_url" title="Download the LAN-Link app">&#11015; Get the app</a>
   </div>
-  <div class="dot" id="devDot" title="Device connected"></div>
-  <span class="stat" id="devStat">waiting for device&hellip;</span>
-  <div class="feat">
-    <button data-f="screen" id="bScreen">Screen share</button>
-    <button data-f="front"  id="bFront">Front camera</button>
-    <button data-f="back"   id="bBack">Back camera</button>
-    <button data-f="stop"   id="bStop">Stop</button>
-    <a class="apk" href="/app.apk?t=$token" title="Download the LAN-Link app (APK)">&#11015; Get the app</a>
+  <div class="chips">
+    <span class="chip">stream <b id="cFps">0 fps</b></span>
+    <span class="chip">quality <b id="cRes">&mdash;</b></span>
+    <span class="chip">viewers <b id="cViewers">1</b></span>
+    <span class="chip">uptime <b id="cUp">0s</b></span>
+    <span class="chip">server <b>v$version</b></span>
   </div>
 </header>
 
+<nav>
+  <button data-tab="live" class="on">&#9654; Live</button>
+  <button data-tab="control">&#127909; Remote control</button>
+  <button data-tab="app">&#128242; Get the app</button>
+  <button data-tab="help">&#10067; Help</button>
+</nav>
+
 <main>
-  <div id="stage">
-    <canvas id="screen" width="960" height="540"></canvas>
-    <div id="overlay">
-      <div class="panel">
-        <h2>Waiting for your phone&hellip;</h2>
-        <p>
-          Scan the <b>QR code</b> shown in the terminal with the LAN-Link app
-          (or Google Lens) &mdash; the stream starts automatically.
-        </p>
-        <div class="actions">
-          <a class="apk" href="/app.apk?t=$token">&#11015; Install the app (APK)</a>
-          <a class="ghost" href="$repo_url/releases" target="_blank" rel="noopener">Releases page</a>
+
+  <!-- ============ LIVE ============ -->
+  <section id="tab-live">
+    <div class="featbar">
+      <button data-f="screen" id="bScreen">Screen share</button>
+      <button data-f="front"  id="bFront">Front camera</button>
+      <button data-f="back"   id="bBack">Back camera</button>
+      <button data-f="stop"   id="bStop" class="danger">&#9632; Stop</button>
+      <button id="btnFull" style="margin-left:auto">&#9974; Fullscreen</button>
+    </div>
+    <div id="stage">
+      <canvas id="screen" width="960" height="540"></canvas>
+      <div id="overlay">
+        <div class="cardp">
+          <h2>Waiting for your phone&hellip;</h2>
+          <p>
+            Scan the <b>QR code</b> shown in the terminal with the LAN-Link app
+            (or Google Lens) &mdash; the stream starts automatically.
+          </p>
+          <div class="actions">
+            <a class="apk" href="$apk_url">&#11015; Install the app</a>
+            <a class="ghost" href="#tab-app" onclick="showTab('app')">App help</a>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+    <p class="hint">Tap the video to tap the phone &middot; drag to swipe &middot; full remote control lives in the <b>Remote control</b> tab</p>
+  </section>
+
+  <!-- ============ REMOTE CONTROL ============ -->
+  <section id="tab-control" hidden>
+    <div class="panel ctrl-card" style="margin-bottom:16px">
+      <h3>Phone navigation</h3>
+      <div class="ctrl-grid">
+        <button data-k="back"><span>&#9664;</span>Back</button>
+        <button data-k="home"><span>&#8962;</span>Home</button>
+        <button data-k="recents"><span>&#9776;</span>Recents</button>
+        <button data-k="notifications"><span>&#128276;</span>Notifications</button>
+        <button data-p="out"><span>&#128269;&#8722;</span>Zoom out</button>
+        <button data-p="in"><span>&#128269;&#43;</span>Zoom in</button>
+      </div>
+    </div>
+    <div class="panel ctrl-card" style="margin-bottom:16px">
+      <h3>Type on the phone</h3>
+      <div class="row">
+        <input type="text" id="txt" placeholder="Type text and press Enter to send it to the phone&hellip;" autocomplete="off">
+        <button id="sendTxt">Send &#10148;</button>
+      </div>
+      <div class="quick">
+        <button data-quick="Hello!">Hello!</button>
+        <button data-quick="Thank you!">Thank you!</button>
+        <button data-quick="https://github.com/mohaedgei/LAN-Link">URL</button>
+        <button data-quick="123456">OTP-ish number</button>
+      </div>
+      <p class="hint" style="text-align:left">Text is typed into the phone through the LAN-Link keyboard &mdash; set it once as the active input method when asked.</p>
+    </div>
+    <div class="panel ctrl-card">
+      <h3>Touch gestures</h3>
+      <p style="color:var(--dim);font-size:13px;line-height:1.8">
+        Go to the <b style="color:var(--acc2)">Live</b> tab and interact with the video directly:<br>
+        &bull; <b>Short tap</b> &rarr; taps the phone in that spot<br>
+        &bull; <b>Drag</b> &rarr; swipes in that direction<br>
+        &bull; Everything runs inside your local WiFi &mdash; nothing leaves the network.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ GET THE APP ============ -->
+  <section id="tab-app" hidden>
+    <div class="panel dlcard">
+      <div class="big">&#128242;</div>
+      <h2>LAN-Link Android app</h2>
+      <p>Screen share + front / back camera streaming with full remote control.<br>No cloud, no accounts &mdash; everything stays on your WiFi.</p>
+      <a class="apk" href="$apk_url">&#11015; Download LAN-Link APK</a>
+      <div class="dlmeta">$apk_info &middot; connect it once with the session code and it remembers</div>
+    </div>
+    <div class="panel steps">
+      <h3>Install in 3 steps</h3>
+      <div class="step"><span><b>Download the APK</b> using the button above (if your phone asks, allow <b>Install unknown apps</b> for your browser).</span></div>
+      <div class="step"><span><b>Install and open LAN-Link</b>, then fill the IP, port and session code shown in the terminal &mdash; or just <b>scan the QR</b>. The app remembers everything for next time.</span></div>
+      <div class="step"><span><b>Pick a feature</b> (screen share or a camera), allow the permission and the dashboard starts streaming instantly.</span></div>
+    </div>
+  </section>
+
+  <!-- ============ HELP ============ -->
+  <section id="tab-help" hidden>
+    <div class="panel faq">
+      <details open>
+        <summary>How do I connect the phone?</summary>
+        <p>Start the server in the terminal (<code>python lanlink.py</code> &rarr; option 2). A QR code appears. Open the LAN-Link app on the phone and scan it, or copy the IP / port / session code into the app fields. From then on the app keeps the values saved &mdash; next runs are one tap.</p>
+      </details>
+      <details>
+        <summary>The video says &ldquo;waiting for your phone&rdquo;</summary>
+        <p>The server is up but the app is not streaming yet. Open the app and press one of the three feature buttons (screen share needs the media-permission popup approved). Check that both devices are on the same WiFi and that the IP in the app matches the one printed in the terminal.</p>
+      </details>
+      <details>
+        <summary>Remote control does nothing</summary>
+        <p>Remote taps / swipes / keys are injected through Android accessibility. Open phone <b>Settings &rarr; Accessibility &rarr; LAN-Link</b> and turn the service on, then start screen share again.</p>
+      </details>
+      <details>
+        <summary>Typing text does nothing</summary>
+        <p>Enable the <b>LAN-Link keyboard</b> once: Settings &rarr; System &rarr; Keyboards &rarr; enable it, then switch to it when a text field is focused on the phone. After the first setup it works automatically.</p>
+      </details>
+      <details>
+        <summary>Is my stream visible to the internet?</summary>
+        <p>No. The server binds inside the LAN only and every page, frame and command is gated by the session code in the QR. Nothing is uploaded anywhere. Rotate the code anytime with <code>python lanlink.py start --new-token</code>.</p>
+      </details>
+      <details>
+        <summary>Where does the APK come from?</summary>
+        <p>The green buttons on this page serve the APK file bundled with this project, or the latest GitHub release when no local copy exists. The project and its source live at <a style="color:var(--acc)" href="$repo_url" target="_blank" rel="noopener">github.com/mohaedgei/LAN-Link</a>.</p>
+      </details>
+    </div>
+  </section>
+
 </main>
 
 <footer>
-  <button data-k="back">&#9664; Back</button>
-  <button data-k="home">&#8962; Home</button>
-  <button data-k="recents">&#9776; Recents</button>
-  <button data-p="out">&#128269; Zoom &#8722;</button>
-  <button data-p="in">Zoom &#43;</button>
-  <input type="text" id="txt" placeholder="Type text to the phone&hellip;">
-  <button id="sendTxt">Send</button>
-  <span class="stat" id="fps"></span>
-  <div class="credit">LAN-Link &mdash; local WiFi streaming &middot; made by <a href="https://t.me/Py_RHL" target="_blank" rel="noopener">@Py_RHL</a></div>
+  <div class="credit">
+    LAN-Link v$version &mdash; screen &amp; camera streaming over local WiFi &middot; MIT license<br>
+    made by <a href="https://t.me/Py_RHL" target="_blank" rel="noopener">@Py_RHL</a> on Telegram
+  </div>
 </footer>
 <div id="toast"></div>
 
@@ -116,26 +288,44 @@
   var ws = null, overlay = document.getElementById("overlay"),
       canvas = document.getElementById("screen"), ctx = canvas.getContext("2d"),
       devDot = document.getElementById("devDot"), devStat = document.getElementById("devStat"),
-      fpsEl = document.getElementById("fps"), toastEl = document.getElementById("toast");
-  var frames = 0, lastFps = Date.now(), downPos = null;
+      toastEl = document.getElementById("toast");
+  var frames = 0, lastFps = Date.now(), downPos = null, curRes = "";
 
-  function toast(msg) {
+  function toast(msg, ok) {
     toastEl.textContent = msg; toastEl.style.display = "block";
+    toastEl.className = ok ? "ok" : "";
     setTimeout(function () { toastEl.style.display = "none"; }, 2600);
   }
 
+  /* ---------- tabs ---------- */
+  function showTab(name) {
+    ["live", "control", "app", "help"].forEach(function (t) {
+      document.getElementById("tab-" + t).hidden = (t !== name);
+    });
+    document.querySelectorAll("nav button").forEach(function (b) {
+      b.className = (b.getAttribute("data-tab") === name) ? "on" : "";
+    });
+  }
+  document.querySelectorAll("nav button").forEach(function (b) {
+    b.onclick = function () { showTab(b.getAttribute("data-tab")); };
+  });
+
+  /* ---------- websocket stream ---------- */
   function connect() {
     ws = new WebSocket("ws://" + location.host + "/ws?t=" + TOKEN + "&role=viewer");
     ws.binaryType = "blob";
-    ws.onopen = function () { if (START_FEATURE && START_FEATURE !== "none") { send({ type: "feature", value: START_FEATURE }); } };
+    ws.onopen = function () {
+      if (START_FEATURE && START_FEATURE !== "none") { send({ type: "feature", value: START_FEATURE }); markActive(START_FEATURE); }
+    };
     ws.onmessage = function (ev) {
       if (ev.data instanceof Blob) {
-        var bmp = createImageBitmap(ev.data);
-        bmp.then(function (img) {
+        createImageBitmap(ev.data).then(function (img) {
           canvas.width = img.width; canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
           overlay.style.display = "none";
           frames++;
+          curRes = img.width + "\u00d7" + img.height;
+          document.getElementById("cRes").textContent = curRes;
         });
       } else {
         try { var msg = JSON.parse(ev.data); } catch (e) { return; }
@@ -143,7 +333,7 @@
           if (msg.value === "device-connected") { devDot.className = "dot on"; devStat.textContent = "device connected"; }
           if (msg.value === "device-disconnected") { devDot.className = "dot"; devStat.textContent = "device disconnected"; }
           if (msg.value === "no-device") { toast("No phone connected yet — scan the QR with the LAN-Link app"); }
-          if (msg.value === "capture-started") { devStat.textContent = "streaming"; }
+          if (msg.value === "capture-started") { devStat.textContent = "streaming"; toast("Stream started", true); }
         }
       }
     };
@@ -151,22 +341,32 @@
     ws.onerror = function () { ws.close(); };
   }
 
-  function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); } }
+  function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
 
+  /* ---------- feature buttons ---------- */
   function markActive(feature) {
-    ["bScreen","bFront","bBack"].forEach(function (id) { document.getElementById(id).className = ""; });
+    ["bScreen", "bFront", "bBack"].forEach(function (id) { document.getElementById(id).className = ""; });
     if (feature === "screen") bScreen.className = "active";
     if (feature === "front") bFront.className = "active";
     if (feature === "back") bBack.className = "active";
   }
-
   document.querySelectorAll("[data-f]").forEach(function (btn) {
     btn.onclick = function () {
       var f = btn.getAttribute("data-f");
-      send({ type: "feature", value: f });
-      markActive(f);
+      if (send({ type: "feature", value: f })) { markActive(f === "stop" ? "" : f); }
+      else { toast("Not connected to the server yet"); }
     };
   });
+
+  /* ---------- fullscreen ---------- */
+  document.getElementById("btnFull").onclick = function () {
+    var el = document.getElementById("stage");
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else if (el.requestFullscreen) { el.requestFullscreen(); }
+    else { toast("Fullscreen is not supported here"); }
+  };
+
+  /* ---------- control tab ---------- */
   document.querySelectorAll("[data-k]").forEach(function (btn) {
     btn.onclick = function () { send({ type: "key", value: btn.getAttribute("data-k") }); };
   });
@@ -176,11 +376,17 @@
   document.getElementById("sendTxt").onclick = sendText;
   document.getElementById("txt").addEventListener("keydown", function (e) { if (e.key === "Enter") sendText(); });
   function sendText() {
-    var v = document.getElementById("txt").value;
-    if (v) { send({ type: "text", value: v }); document.getElementById("txt").value = ""; }
+    var el = document.getElementById("txt"), v = el.value;
+    if (v && send({ type: "text", value: v })) { el.value = ""; toast("Text sent to the phone", true); }
   }
+  document.querySelectorAll("[data-quick]").forEach(function (btn) {
+    btn.onclick = function () {
+      var v = btn.getAttribute("data-quick");
+      if (send({ type: "text", value: v })) { toast("Sent: " + v, true); }
+    };
+  });
 
-  // Pointer: short press = tap, drag = swipe (normalized 0..1 coordinates)
+  /* ---------- touch on the live video ---------- */
   canvas.addEventListener("pointerdown", function (e) { downPos = pos(e); });
   canvas.addEventListener("pointerup", function (e) {
     if (!downPos) return;
@@ -198,11 +404,26 @@
              y: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1) };
   }
 
+  /* ---------- stats (fps + /status poll) ---------- */
   setInterval(function () {
-    var now = Date.now();
-    fpsEl.textContent = frames + " fps";
+    document.getElementById("cFps").textContent = frames + " fps";
     frames = 0;
   }, 1000);
+  setInterval(function () {
+    fetch("/status?t=" + TOKEN).then(function (r) { return r.json(); }).then(function (s) {
+      if (typeof s.viewers === "number") { document.getElementById("cViewers").textContent = s.viewers + 1; }
+      if (typeof s.uptime_sec === "number") {
+        var u = Math.floor(s.uptime_sec), t;
+        if (u >= 3600) { t = Math.floor(u / 3600) + "h " + Math.floor((u % 3600) / 60) + "m"; }
+        else if (u >= 60) { t = Math.floor(u / 60) + "m " + (u % 60) + "s"; }
+        else { t = u + "s"; }
+        document.getElementById("cUp").textContent = t;
+      }
+      if (s.device_connected && devDot.className.indexOf("on") < 0) {
+        devDot.className = "dot on"; devStat.textContent = "device connected";
+      }
+    }).catch(function () {});
+  }, 3000);
 
   connect();
 </script>

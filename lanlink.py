@@ -72,7 +72,8 @@ def option_build() -> None:
 # ---------------------------------------------------------------------
 
 def option_start(feature: str | None = None, host: str | None = None,
-                 port: int | None = None, view: str | None = None) -> None:
+                 port: int | None = None, view: str | None = None,
+                 new_token: bool = False) -> None:
     print()
     if feature is None:
         print("  Which feature do you want to run?")
@@ -95,8 +96,11 @@ def option_start(feature: str | None = None, host: str | None = None,
 
     print()
     print(f"  Starting {config.FEATURE_LABELS[feature]}...")
+    # Stable session code: created once, then reused so the app keeps working
+    # without re-pairing. Rotate with --new-token (or delete lanlink.token).
+    token = config.load_or_create_token(force_new=new_token)
     try:
-        handle = server.start_background(ip, port, feature)
+        handle = server.start_background(ip, port, feature, token=token)
     except RuntimeError as exc:
         print(f"  [!] {exc}")
         return
@@ -104,7 +108,7 @@ def option_start(feature: str | None = None, host: str | None = None,
     line()
     print(f"  Server      : {handle.base_url}")
     print(f"  Feature     : {config.FEATURE_LABELS[feature]}")
-    print(f"  Session code: {GREEN}{handle.token}{RESET}")
+    print(f"  Session code: {GREEN}{handle.token}{RESET}  {DIM}(stable — the app saves it after the first pairing){RESET}")
     qrgen.make(handle.connect_url, feature, config.DIST_DIR)
     print(f"  PC browser viewer : {handle.viewer_url}")
     print(f"  This device       : http://127.0.0.1:{port}/?t={handle.token}")
@@ -181,6 +185,8 @@ def main() -> int:
     start.add_argument("-p", "--port", type=int, default=config.DEFAULT_PORT)
     start.add_argument("--host", help="PC LAN IP (auto-detected by default)")
     start.add_argument("--view", choices=["none", "browser", "window", "both"], default="browser")
+    start.add_argument("--new-token", action="store_true",
+                       help="generate a fresh session code instead of reusing the saved one")
 
     win = sub.add_parser("window", help="open the desktop viewer window for a running server")
     win.add_argument("-p", "--port", type=int, default=config.DEFAULT_PORT)
@@ -193,7 +199,8 @@ def main() -> int:
     if args.cmd == "build":
         option_build()
     elif args.cmd == "start":
-        option_start(feature=args.feature, host=args.host, port=args.port, view=args.view)
+        option_start(feature=args.feature, host=args.host, port=args.port,
+                     view=args.view, new_token=args.new_token)
     elif args.cmd == "window":
         cmd_window(args)
     else:

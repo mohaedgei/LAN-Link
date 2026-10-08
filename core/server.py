@@ -121,6 +121,7 @@ def make_app(hub: Hub) -> web.Application:
             feature=feature,
             host=request.host,
             apk_url=f"/app.apk?t={hub.token}",
+            viewer_url=f"/?t={hub.token}",
             repo_url=config.REPO_URL,
         )
         return web.Response(text=html, content_type="text/html")
@@ -134,6 +135,10 @@ def make_app(hub: Hub) -> web.Application:
             token=hub.token,
             feature=hub.requested_feature,
             repo_url=config.REPO_URL,
+            apk_url=f"/app.apk?t={hub.token}",
+            apk_info=(f"LAN-Link.apk · {config.apk_size_mb()}" if config.find_apk()
+                      else "LAN-Link.apk · latest release"),
+            version=config.VERSION,
         )
         return web.Response(text=html, content_type="text/html")
 
