@@ -55,7 +55,10 @@ class Hub:
     # -- token ---------------------------------------------------------
     def check_token(self, request) -> bool:
         got = request.query.get("t") or request.query.get("token") or ""
-        return secrets.compare_digest(got, self.token)
+        # Case-insensitive: some keyboards/QR flows uppercase the code
+        return bool(got) and secrets.compare_digest(
+            got.strip().lower(), self.token.strip().lower()
+        )
 
     # -- helpers -------------------------------------------------------
     async def relay_to_device(self, payload: dict) -> bool:

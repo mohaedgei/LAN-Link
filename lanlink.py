@@ -5,6 +5,7 @@ and control the phone from your PC. 100% LAN, no cloud, no accounts.
     python lanlink.py            -> interactive menu
     python lanlink.py build      -> option 1 directly
     python lanlink.py start      -> option 2 directly
+    python lanlink.py qr         -> option 3 directly (encrypted QR)
 """
 
 import argparse
@@ -15,7 +16,7 @@ import time
 import webbrowser
 
 from core import APP_NAME, VERSION, config
-from core import builder, netutils, qrgen, server
+from core import builder, netutils, qrcrypto, qrgen, server
 
 # --- terminal colors (harmless on Termux / Linux; enabled on Windows below) ---
 GREEN = "\033[92m"
@@ -56,6 +57,7 @@ def menu() -> str:
     line()
     print("  [1] Build / prepare the Android app (APK)")
     print("  [2] Start a feature (screen share / front / back camera) + QR")
+    print("  [3] Make the encrypted QR for the phone app (no server needed)")
     print("  [0] Exit")
     line()
     return input("  Select an option: ").strip()
@@ -80,13 +82,14 @@ def show_ready_card(ip: str, port: int) -> None:
         print(f"  App file : {GREEN}{apk.resolve()}{RESET}")
         print(f"  Size     : {size_mb}")
         print(f"  Network  : {ip} : {port}")
+        print(f"  QR app   : {GREEN}{config.SITE_URL}{RESET}")
         line()
         print(f"  1. Install this APK on the phone (one time)")
         print(f"  2. Start the stream:")
         print(f"       {BRIGHT}python lanlink.py{RESET}  {DIM}->  option 2{RESET}")
-        print(f"  3. Open the dashboard link it gives you, e.g.")
-        print(f"       {GREEN}http://{ip}:{port}/?t=code{RESET}")
-        print(f"       {GREEN}http://127.0.0.1:{port}/?t=code{RESET}  {DIM}(on this phone){RESET}")
+        print(f"  3. Scan the green encrypted QR it shows — the app")
+        print(f"     decodes it and streams. It can also be generated")
+        print(f"     online at {GREEN}{config.SITE_URL}{RESET}")
         line()
         try:
             answer = input("  Start the server now? [Y/n]: ").strip().lower()
@@ -104,6 +107,7 @@ def show_ready_card(ip: str, port: int) -> None:
         print(f"       {GREEN}http://{ip}:{port}/?t=code{RESET}")
         print(f"  3. Tap the green {BRIGHT}Get the app{RESET} button there —")
         print(f"     it serves the APK straight from this project.")
+        print(f"  Or download the app online: {GREEN}{config.SITE_URL}{RESET}")
         line()
         try:
             answer = input("  Start the server now? [Y/n]: ").strip().lower()
@@ -241,11 +245,23 @@ def option_start(feature: str | None = None, host: str | None = None,
     print(f"  Dashboard (this phone) : {GREEN}http://127.0.0.1:{port}/?t={handle.token}{RESET}")
     print(f"  Feature                : {config.FEATURE_LABELS[feature]}")
     print(f"  Session code           : {BRIGHT}{handle.token}{RESET}  {DIM}(stable — the app saves it){RESET}")
+    print(f"  QR app / generator     : {GREEN}{config.SITE_URL}{RESET}")
     line()
-    print(f"  Scan the QR below with the LAN-Link app — the stream")
-    print(f"  starts automatically. Press Ctrl+C to stop.")
+    print(f"  Scan the QR below with the LAN-Link app — it decrypts it")
+    print(f"  and starts the stream by itself. Press Ctrl+C to stop.")
     line()
-    qrgen.make(handle.connect_url, feature, config.DIST_DIR)
+
+    # v2: the app only accepts encrypted QL1 payloads. Fall back to the
+    # legacy URL QR only when no AES library is installed.
+    payload = qrcrypto.encrypt_ql1(feature, ip, port, handle.token)
+    if payload is not None:
+        qrgen.make(payload, feature, config.DIST_DIR)
+    else:
+        print("  [!] For the encrypted QR install one small library:")
+        print("        pip install pycryptodome")
+        print(f"      or generate it online: {config.SITE_URL}")
+        print("  Showing the legacy URL QR below (pairing via Google Lens):")
+        qrgen.make(handle.connect_url, feature, config.DIST_DIR)
 
     if view is None:
         try:
@@ -293,6 +309,58 @@ def remember_defaults(ip: str, port: int) -> None:
 
 
 # ---------------------------------------------------------------------
+# Option 3 — encrypted QR for the phone app (server not required)
+# ---------------------------------------------------------------------
+
+def option_qr(feature: str | None = None, host: str | None = None,
+              port: int | None = None) -> None:
+    if feature is None:
+        print()
+        print("  What should the app do when it scans this QR?")
+        print("    1) Watch the screen")
+        print("    2) Front camera")
+        print("    3) Back camera")
+        print("    4) Let me choose in the app (shows 3 buttons)")
+        choice = input("  Select [4]: ").strip() or "4"
+        feature = {"1": "screen", "2": "front", "3": "back", "4": "any"}.get(choice)
+        while feature is None:
+            print("  [!] Please choose 1, 2, 3 or 4")
+            choice = input("  Select [4]: ").strip() or "4"
+            feature = {"1": "screen", "2": "front", "3": "back", "4": "any"}.get(choice)
+
+    defaults = config.load_properties(config.APP_PROPERTIES_FILE)
+    auto_ip = host or defaults.get("host") or netutils.get_lan_ip()
+    ip = host or netutils.ask_ip(auto_ip)
+    if port is None:
+        port = netutils.ask_port(int(defaults.get("port", config.DEFAULT_PORT)))
+    remember_defaults(ip, port)
+    token = config.load_or_create_token()
+
+    payload = qrcrypto.encrypt_ql1(feature, ip, port, token)
+    if payload is None:
+        print()
+        print("  [!] The encrypted QR needs one small crypto library:")
+        print(f"        {BRIGHT}pip install pycryptodome{RESET}")
+        print("      then run this option again — or generate the QR online:")
+        print(f"        {GREEN}{config.SITE_URL}{RESET}")
+        return
+
+    print()
+    print(f"  {GREEN}{BRIGHT}[OK] ENCRYPTED QR READY{RESET}")
+    line()
+    print(f"  Opens  : {config.FEATURE_LABELS.get(feature, 'Your choice in the app')}")
+    print(f"  Target : {ip}:{port}")
+    print(f"  Session: {BRIGHT}{token}{RESET}")
+    print(f"  Valid  : 24 hours")
+    line()
+    print(f"  Scan it with the LAN-Link app (camera or a saved picture).")
+    print(f"  {DIM}Note: the QR alone does not stream — start the server with")
+    print(f"  option 2 (it shows this same QR while running).{RESET}")
+    line()
+    qrgen.make(payload, f"{feature}-app", config.DIST_DIR)
+
+
+# ---------------------------------------------------------------------
 # Direct subcommands (for power users)
 # ---------------------------------------------------------------------
 
@@ -321,6 +389,11 @@ def main() -> int:
     start.add_argument("--new-token", action="store_true",
                        help="generate a fresh session code instead of reusing the saved one")
 
+    qr = sub.add_parser("qr", help="option 3: encrypted QR for the phone app")
+    qr.add_argument("-f", "--feature", choices=config.QR_CMDS, default="any")
+    qr.add_argument("-p", "--port", type=int, default=config.DEFAULT_PORT)
+    qr.add_argument("--host")
+
     win = sub.add_parser("window", help="open the desktop viewer window for a running server")
     win.add_argument("-p", "--port", type=int, default=config.DEFAULT_PORT)
     win.add_argument("-t", "--token", required=True)
@@ -334,6 +407,8 @@ def main() -> int:
     elif args.cmd == "start":
         option_start(feature=args.feature, host=args.host, port=args.port,
                      view=args.view, new_token=args.new_token)
+    elif args.cmd == "qr":
+        option_qr(feature=args.feature, host=args.host, port=args.port)
     elif args.cmd == "window":
         cmd_window(args)
     else:
@@ -347,11 +422,13 @@ def main() -> int:
                 option_build()
             elif choice == "2":
                 option_start()
+            elif choice == "3":
+                option_qr()
             elif choice in ("0", "q", "exit", "quit"):
                 print("\n  Bye!\n")
                 return 0
             else:
-                print("\n  [!] Unknown option — choose 1, 2 or 0\n")
+                print("\n  [!] Unknown option — choose 1, 2, 3 or 0\n")
     return 0
 
 

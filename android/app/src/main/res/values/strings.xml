@@ -1,24 +1,24 @@
 <resources>
     <string name="app_name">LAN-Link</string>
+    <string name="tagline">scan the encrypted QR — screen &amp; cameras on your PC</string>
     <string name="a11y_label">LAN-Link Control</string>
     <string name="a11y_label_desc">LAN-Link remote control</string>
     <string name="ime_label">LAN-Link Text</string>
 
-    <string name="status_title">Connection</string>
-    <string name="status_idle">Not connected</string>
+    <string name="status_idle">Ready — scan a QR to connect</string>
 
-    <string name="hint_host">PC IP address (e.g. 192.168.1.10)</string>
-    <string name="hint_port">Server port (e.g. 8080)</string>
-    <string name="hint_token">Session code from the QR (6 chars)</string>
-
-    <string name="btn_scan">Scan QR to connect</string>
-    <string name="btn_screen">Start screen share</string>
-    <string name="btn_front">Start front camera</string>
-    <string name="btn_back">Start back camera</string>
+    <string name="btn_scan_now">SCAN QR CODE</string>
+    <string name="btn_pick_image">Decode QR from a picture</string>
+    <string name="btn_screen">Watch Screen</string>
+    <string name="btn_front">Front Camera</string>
+    <string name="btn_back">Back Camera</string>
     <string name="btn_stop">Stop streaming</string>
+    <string name="btn_rescan">Scan a different QR</string>
 
-    <string name="setup_title">One-time setup (for full remote control)</string>
-    <string name="setup_body">1. Settings > Accessibility > LAN-Link Control -> ON\n2. Settings > System > Languages &amp; input > On-screen keyboard > LAN-Link Text -> ON\nWhen typing remotely, switch the keyboard to LAN-Link Text.</string>
+    <string name="target_label">Connected target</string>
+    <string name="hint_encrypted">The QR is fully encrypted (AES-256-GCM) — only this app can decode it.\n\nGenerate one with the LAN-Link script on your PC, or online:</string>
+
+    <string name="footer_credit">https://c4sf4qh0-d.space-z.ai  ·  made by @Py_RHL</string>
 
     <string name="notif_channel">LAN-Link streaming</string>
     <string name="notif_title">LAN-Link is streaming</string>

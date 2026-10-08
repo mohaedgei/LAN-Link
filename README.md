@@ -26,17 +26,29 @@ A small Python script drives everything:
 - **Option 1** — builds the Android app for your network and tells you
   exactly where the APK is, ready to install.
 - **Option 2** — starts a feature (screen share / front camera / back
-  camera) and shows a **QR code**. Scan it with the app (or Google Lens)
+  camera) and shows a **fully encrypted QR code**. Scan it with the app
   and the connection + streaming starts automatically.
+- **Option 3** — prints the same encrypted QR **without running the
+  server** (handy to pre-pair the phone), or generate it online at
+  [c4sf4qh0-d.space-z.ai](https://c4sf4qh0-d.space-z.ai) — the companion
+  site that also hosts the APK download and a live relay.
 
 ## Features
+
+- **v2 QR app — a pure scanner** — the app now does ONE thing: scan the
+  encrypted QR (or decode one from a picture). Inside is the PC address
+  + session code, sealed with **AES-256-GCM** so only the app can read
+  it. No manual IP entry, no codes to type, nothing else on screen —
+  just three buttons: **Watch Screen / Front Camera / Back Camera**.
 
 - **Screen share with full remote control** — watch the phone screen in
   the browser or a desktop window, then tap, swipe, pinch-zoom, press
   Back / Home / Recents and even type text from the PC.
 - **Front & back camera streaming** — live camera view at 720p.
-- **QR pairing** — one scan connects the phone to the PC; the QR also
-  deep-links into the app via Google Lens.
+- **QR pairing, sealed** — one scan connects the phone to the PC. The
+  QL1 payload (`QL1.` + base64url(nonce ‖ ciphertext ‖ tag)) is produced
+  identically by the script, the website API (`/api/qr/encrypt`) and can
+  only be opened by the app; it also expires after 24 hours.
 - **Three buttons, nothing more** — screen / front camera / back camera.
 - **Full web dashboard** — the viewer page is a complete control center
   with four tabs: **Live** (stream + feature switches + fullscreen),
@@ -159,6 +171,7 @@ python3 lanlink.py
 pkg update && pkg install python git
 pip install -r requirements.txt      # aiohttp + qrcode only — Termux-safe
 python lanlink.py                    # option 2 -> QR -> stream
+python lanlink.py qr                 # option 3 -> encrypted QR offline
 ```
 
 Notes for Termux:
@@ -267,8 +280,17 @@ connection defaults and prints guidance. Use the GitHub Actions path above
 - **الخيار 1** — يجهز التطبيق على شبكتك ويبني الـ APK ويقولك مكانه بالظبط
   عشان تثبته عادي على الموبايل وتديله الصلاحيات.
 - **الخيار 2** — يشغّل الميزة (مشاركة شاشة / كاميرا أمامية / كاميرا خلفية)
-  ويطلعلك **QR كود**. امسحه بالتطبيق (ماسح مدمج) أو بجوجل lens — اللينك
-  بيفتح التطبيق أوتوماتيك ويعمل الاتصال ويبدأ البث.
+  ويطلعلك **QR كود مشفّر بالكامل (AES-256-GCM)**. امسحه بالتطبيق — الاتصال
+  والبث بيبدأوا لوحدهم.
+- **الخيار 3** — يطبع نفس الـ QR المشفّر **من غير تشغيل السيرفر**، أو
+  اعمله أونلاين من [c4sf4qh0-d.space-z.ai](https://c4sf4qh0-d.space-z.ai)
+  — الموقع الرسمي اللي فيه مولّد الـ QR + تحميل الـ APK + رلاي بث حي.
+
+> **جديد في v2.0.0:** التطبيق بقى **ماسح QR نقي** — شاشة واحدة: اسكان
+> (كاميرا أو صورة من الجاليري)، والـ QR جواه عنوان الكمبيوتر والكود
+> مشفّرين بحيث **مفيش حد غير التطبيق يقدر يفكهم**. بعد الاسكان: 3 زرار
+> بس — **شوف الشاشة / الكاميرا الأمامية / الكاميرا الخلفية**. مفيش
+> كتابة IP ولا إعدادات ولا حاجة تانية خالص. الـ QR بصلاحية 24 ساعة.
 
 ### الخطوات باختصار
 

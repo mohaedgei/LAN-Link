@@ -4,12 +4,13 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,34 +18,45 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Main screen: connection fields (prefilled from the bundled defaults or
- * the QR / deep link), the three feature buttons and stop.
+ * LAN-Link v2 — a pure QR app.
+ *
+ * 1. Scan the fully encrypted QR (QL1 / AES-256-GCM — only this app can
+ *    decode it) shown by the LAN-Link script or generated on
+ *    https://c4sf4qh0-d.space-z.ai — or decode one from a picture.
+ * 2. The payload carries the PC address + session code.
+ * 3. The app then offers three actions: watch the screen, the front
+ *    camera or the back camera — streaming straight to the PC over WiFi.
+ *
+ * No manual IP entry, no codes to type, nothing else to configure.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var editHost: EditText
-    private lateinit var editPort: EditText
-    private lateinit var editToken: EditText
+    private lateinit var scanPanel: View
+    private lateinit var controlPanel: View
     private lateinit var statusText: TextView
+    private lateinit var targetText: TextView
 
     /** Feature waiting for a runtime permission before it can start. */
     private var pendingFeature: String? = null
+
+    // -- connection target (filled by the encrypted QR, remembered locally) --
+    private var host = ""
+    private var port = ""
+    private var token = ""
 
     // -- activity result launchers --------------------------------------
 
     private val scannerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                val url = result.data?.getStringExtra(ScannerActivity.EXTRA_URL).orEmpty()
-                if (url.isNotEmpty()) {
-                    applyConnection(
-                        host = Uri.parse(url).host ?: editHost.text.toString(),
-                        port = (Uri.parse(url).port.takeIf { it > 0 } ?: 8080).toString(),
-                        token = Uri.parse(url).getQueryParameter("t").orEmpty()
-                    )
-                    startFeature(Uri.parse(url).getQueryParameter("f") ?: "screen")
-                }
+                val raw = result.data?.getStringExtra(ScannerActivity.EXTRA_URL).orEmpty()
+                if (raw.isNotEmpty()) handleQrText(raw)
             }
+        }
+
+    private val imagePicker =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) decodeImage(uri)
         }
 
     private val consentLauncher =
@@ -76,15 +88,18 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        editHost = findViewById(R.id.editHost)
-        editPort = findViewById(R.id.editPort)
-        editToken = findViewById(R.id.editToken)
+        scanPanel = findViewById(R.id.scanPanel)
+        controlPanel = findViewById(R.id.controlPanel)
         statusText = findViewById(R.id.statusText)
-
-        applyBundledDefaults()
-        requestNotificationPermissionIfNeeded()
+        targetText = findViewById(R.id.targetText)
 
         findViewById<Button>(R.id.btnScan).setOnClickListener {
+            scannerLauncher.launch(Intent(this, ScannerActivity::class.java))
+        }
+        findViewById<Button>(R.id.btnPickImage).setOnClickListener {
+            imagePicker.launch("image/*")
+        }
+        findViewById<Button>(R.id.btnRescan).setOnClickListener {
             scannerLauncher.launch(Intent(this, ScannerActivity::class.java))
         }
         findViewById<Button>(R.id.btnScreen).setOnClickListener { startFeature("screen") }
@@ -94,13 +109,10 @@ class MainActivity : AppCompatActivity() {
             stopService(Intent(this, StreamService::class.java))
         }
 
-        handleIntent(intent)
+        loadTarget()
+        if (hasTarget()) showControl() else showScan()
+        requestNotificationPermissionIfNeeded()
         statusText.text = StreamStatus.text
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
     }
 
     override fun onResume() {
@@ -115,44 +127,100 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------------
-    // Connection inputs
+    // QR handling — the heart of the app
     // ------------------------------------------------------------------
 
-    /** Defaults bundled by "python lanlink.py" option 1. */
-    private fun applyBundledDefaults() {
-        try {
-            assets.open("lanlink.properties").bufferedReader().useLines { lines ->
-                for (raw in lines) {
-                    val line = raw.trim()
-                    if (line.isEmpty() || line.startsWith("#")) continue
-                    val key = line.substringBefore("=").trim()
-                    val value = line.substringAfter("=", "").trim()
-                    when (key) {
-                        "host" -> if (editHost.text.isEmpty()) editHost.setText(value)
-                        "port" -> if (editPort.text.isEmpty()) editPort.setText(value)
+    /** Handle any scanned/decoded QR text. Only QL1 payloads are accepted. */
+    private fun handleQrText(raw: String) {
+        val json = Ql1.decrypt(raw.trim())
+        if (json == null) {
+            Toast.makeText(
+                this,
+                "Not a LAN-Link QR — it must be the encrypted code from the script or the website",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        // QRs expire after 24h (set by the generator)
+        val exp = json.optLong("exp", 0L)
+        if (exp in 1..System.currentTimeMillis() / 1000) {
+            Toast.makeText(this, "This QR has expired — generate a fresh one", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val newHost = json.optString("host", "").trim()
+        val newPort = json.optInt("port", 8080).toString()
+        val newToken = json.optString("t", "").trim()
+        if (newHost.isEmpty()) {
+            Toast.makeText(this, "QR has no server address inside", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        host = newHost
+        port = newPort
+        if (newToken.isNotEmpty()) token = newToken
+        saveTarget()
+        showControl()
+        Toast.makeText(this, "Target: $host:$port", Toast.LENGTH_SHORT).show()
+
+        // A QR can carry a specific command (screen / front / back) —
+        // it starts automatically. cmd "any" leaves the choice on screen.
+        val cmd = json.optString("cmd", "any")
+        if (cmd == "screen" || cmd == "front" || cmd == "back") {
+            statusText.postDelayed({ startFeature(cmd) }, 450)
+        }
+    }
+
+    /** Decode a QR from a picked image in the background, then route it. */
+    private fun decodeImage(uri: Uri) {
+        Thread {
+            var text: String? = null
+            try {
+                contentResolver.openInputStream(uri)?.use { stream ->
+                    val bmp = BitmapFactory.decodeStream(stream)
+                    if (bmp != null) {
+                        text = QrImages.decode(bmp)
+                        bmp.recycle()
                     }
                 }
+            } catch (_: Exception) {
             }
-        } catch (_: Exception) {
-        }
-        applySavedConnection()
-        if (editPort.text.isEmpty()) editPort.setText("8080")
+            runOnUiThread {
+                if (text == null) {
+                    Toast.makeText(this, "No QR code found in this image", Toast.LENGTH_SHORT).show()
+                } else {
+                    handleQrText(text!!)
+                }
+            }
+        }.start()
     }
 
-    /**
-     * Values remembered from the previous session: the session code always
-     * comes back, host/port only fill what the bundled defaults left empty
-     * (so option 1 always wins when it runs with a fresh IP).
-     */
-    private fun applySavedConnection() {
+    // ------------------------------------------------------------------
+    // Panels + target persistence
+    // ------------------------------------------------------------------
+
+    private fun hasTarget() = host.isNotEmpty() && port.isNotEmpty()
+
+    private fun showScan() {
+        scanPanel.visibility = View.VISIBLE
+        controlPanel.visibility = View.GONE
+    }
+
+    private fun showControl() {
+        scanPanel.visibility = View.GONE
+        controlPanel.visibility = View.VISIBLE
+        targetText.text = "$host:$port"
+    }
+
+    private fun loadTarget() {
         val p = getSharedPreferences("lanlink", MODE_PRIVATE)
-        if (editToken.text.isEmpty()) editToken.setText(p.getString("token", ""))
-        if (editHost.text.isEmpty()) editHost.setText(p.getString("host", ""))
-        if (editPort.text.isEmpty()) editPort.setText(p.getString("port", ""))
+        host = p.getString("host", "").orEmpty()
+        port = p.getString("port", "").orEmpty()
+        token = p.getString("token", "").orEmpty()
     }
 
-    /** Persist whatever the app is about to connect with. */
-    private fun rememberConnection(host: String, port: String, token: String) {
+    private fun saveTarget() {
         getSharedPreferences("lanlink", MODE_PRIVATE).edit()
             .putString("host", host)
             .putString("port", port)
@@ -160,46 +228,13 @@ class MainActivity : AppCompatActivity() {
             .apply()
     }
 
-    private fun applyConnection(host: String, port: String, token: String) {
-        if (host.isNotEmpty()) editHost.setText(host)
-        if (port.isNotEmpty()) editPort.setText(port)
-        if (token.isNotEmpty()) editToken.setText(token.trim().uppercase())
-        rememberConnection(
-            editHost.text.toString().trim(),
-            editPort.text.toString().trim(),
-            editToken.text.toString().trim()
-        )
-    }
-
-    /**
-     * Handles the lanlink://connect?host=..&port=..&token=..&feature=..
-     * deep link produced when the QR is scanned with Google Lens.
-     */
-    private fun handleIntent(intent: Intent?) {
-        val data = intent?.data ?: return
-        if (data.scheme != "lanlink") return
-        applyConnection(
-            host = data.getQueryParameter("host").orEmpty(),
-            port = data.getQueryParameter("port").orEmpty(),
-            token = data.getQueryParameter("token").orEmpty()
-        )
-        val feature = data.getQueryParameter("feature")
-        if (!feature.isNullOrEmpty() && feature != "none") {
-            // Give the UI a beat to paint, then auto-start the requested feature
-            statusText.postDelayed({ startFeature(feature) }, 350)
-        }
-    }
-
     // ------------------------------------------------------------------
-    // Feature start flows
+    // Feature start flows (screen / front / back)
     // ------------------------------------------------------------------
 
     private fun startFeature(feature: String) {
-        val host = editHost.text.toString().trim()
-        val port = editPort.text.toString().trim()
-        val token = editToken.text.toString().trim()
-        if (host.isEmpty() || port.isEmpty() || token.isEmpty()) {
-            Toast.makeText(this, "Fill IP, port and session code (or scan the QR)", Toast.LENGTH_LONG).show()
+        if (!hasTarget()) {
+            Toast.makeText(this, "Scan the QR first", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -219,10 +254,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchService(feature: String, resultCode: Int = Int.MIN_VALUE, data: Intent? = null) {
-        val host = editHost.text.toString().trim()
-        val port = editPort.text.toString().trim()
-        val token = editToken.text.toString().trim()
-        rememberConnection(host, port, token)
         val intent = Intent(this, StreamService::class.java).apply {
             putExtra(StreamService.EXTRA_HOST, host)
             putExtra(StreamService.EXTRA_PORT, port.toIntOrNull() ?: 8080)
@@ -234,7 +265,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         ContextCompat.startForegroundService(this, intent)
-        Toast.makeText(this, "Connecting to the PC...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Connecting to $host:$port ...", Toast.LENGTH_SHORT).show()
     }
 
     private fun requestNotificationPermissionIfNeeded() {

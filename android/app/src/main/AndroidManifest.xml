@@ -24,8 +24,8 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.LanLink">
 
-        <!-- Main screen. Also handles lanlink://connect?... deep links
-             (opened when the QR is scanned with Google Lens). -->
+        <!-- Main screen: pure QR scanner (v2). No deep links, no manual
+             setup — everything arrives inside the encrypted QR. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -33,12 +33,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="lanlink" android:host="connect" />
             </intent-filter>
         </activity>
 
