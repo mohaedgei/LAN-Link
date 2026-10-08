@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAN-Link Viewer</title>
+<style>
+  :root { color-scheme: dark; --bg:#0b1220; --card:#111a2e; --line:#223251; --txt:#e7edf7; --dim:#93a4c3; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--txt); font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+         min-height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+           background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #475569; }
+  .dot.on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .feat { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: #1c2a47; color: var(--txt); border: 1px solid var(--line);
+           padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #26385e; }
+  button.active { background: linear-gradient(135deg,#2563eb,#7c3aed); border-color: transparent; }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 14px; }
+  #stage { position: relative; max-width: 96vw; max-height: 78vh; }
+  canvas { background: #060b15; border: 1px solid var(--line); border-radius: 12px;
+           max-width: 96vw; max-height: 78vh; cursor: crosshair; touch-action: none; }
+  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             color: var(--dim); font-size: 14px; pointer-events: none; text-align: center; line-height: 1.7; }
+  footer { background: var(--card); border-top: 1px solid var(--line); padding: 10px 14px;
+           display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  input[type=text] { background: #0b1220; border: 1px solid var(--line); color: var(--txt);
+                     padding: 8px 12px; border-radius: 10px; min-width: 220px; font-size: 13px; }
+  .stat { color: var(--dim); font-size: 12px; margin-left: 10px; }
+  #toast { position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+           background: #ef4444; color: #fff; padding: 9px 16px; border-radius: 10px;
+           font-size: 13px; display: none; z-index: 9; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round">
+      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+    </svg>
+    LAN-Link
+  </div>
+  <div class="dot" id="devDot" title="Device connected"></div>
+  <span class="stat" id="devStat">waiting for device&hellip;</span>
+  <div class="feat">
+    <button data-f="screen" id="bScreen">Screen share</button>
+    <button data-f="front"  id="bFront">Front camera</button>
+    <button data-f="back"   id="bBack">Back camera</button>
+    <button data-f="stop"   id="bStop">Stop</button>
+  </div>
+</header>
+
+<main>
+  <div id="stage">
+    <canvas id="screen" width="960" height="540"></canvas>
+    <div id="overlay">
+      <div>
+        Connect your phone to start the stream.<br>
+        Run <b>python lanlink.py</b> &rarr; option 2 &rarr; scan the QR.
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <button data-k="back">&#9664; Back</button>
+  <button data-k="home">&#8962; Home</button>
+  <button data-k="recents">&#9776; Recents</button>
+  <button data-p="out">&#128269; Zoom &#8722;</button>
+  <button data-p="in">Zoom &#43;</button>
+  <input type="text" id="txt" placeholder="Type text to the phone&hellip;">
+  <button id="sendTxt">Send</button>
+  <span class="stat" id="fps"></span>
+</footer>
+<div id="toast"></div>
+
+<script>
+  var TOKEN = "$token";
+  var START_FEATURE = "$feature";
+  var ws = null, overlay = document.getElementById("overlay"),
+      canvas = document.getElementById("screen"), ctx = canvas.getContext("2d"),
+      devDot = document.getElementById("devDot"), devStat = document.getElementById("devStat"),
+      fpsEl = document.getElementById("fps"), toastEl = document.getElementById("toast");
+  var frames = 0, lastFps = Date.now(), downPos = null;
+
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.style.display = "block";
+    setTimeout(function () { toastEl.style.display = "none"; }, 2600);
+  }
+
+  function connect() {
+    ws = new WebSocket("ws://" + location.host + "/ws?t=" + TOKEN + "&role=viewer");
+    ws.binaryType = "blob";
+    ws.onopen = function () { if (START_FEATURE && START_FEATURE !== "none") { send({ type: "feature", value: START_FEATURE }); } };
+    ws.onmessage = function (ev) {
+      if (ev.data instanceof Blob) {
+        var bmp = createImageBitmap(ev.data);
+        bmp.then(function (img) {
+          canvas.width = img.width; canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          overlay.style.display = "none";
+          frames++;
+        });
+      } else {
+        try { var msg = JSON.parse(ev.data); } catch (e) { return; }
+        if (msg.type === "status") {
+          if (msg.value === "device-connected") { devDot.className = "dot on"; devStat.textContent = "device connected"; }
+          if (msg.value === "device-disconnected") { devDot.className = "dot"; devStat.textContent = "device disconnected"; }
+          if (msg.value === "no-device") { toast("No phone connected yet — scan the QR with the LAN-Link app"); }
+          if (msg.value === "capture-started") { devStat.textContent = "streaming"; }
+        }
+      }
+    };
+    ws.onclose = function () { devDot.className = "dot"; devStat.textContent = "server offline — retrying"; setTimeout(connect, 2000); };
+    ws.onerror = function () { ws.close(); };
+  }
+
+  function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); } }
+
+  function markActive(feature) {
+    ["bScreen","bFront","bBack"].forEach(function (id) { document.getElementById(id).className = ""; });
+    if (feature === "screen") bScreen.className = "active";
+    if (feature === "front") bFront.className = "active";
+    if (feature === "back") bBack.className = "active";
+  }
+
+  document.querySelectorAll("[data-f]").forEach(function (btn) {
+    btn.onclick = function () {
+      var f = btn.getAttribute("data-f");
+      send({ type: "feature", value: f });
+      markActive(f);
+    };
+  });
+  document.querySelectorAll("[data-k]").forEach(function (btn) {
+    btn.onclick = function () { send({ type: "key", value: btn.getAttribute("data-k") }); };
+  });
+  document.querySelectorAll("[data-p]").forEach(function (btn) {
+    btn.onclick = function () { send({ type: "pinch", dir: btn.getAttribute("data-p") }); };
+  });
+  document.getElementById("sendTxt").onclick = sendText;
+  document.getElementById("txt").addEventListener("keydown", function (e) { if (e.key === "Enter") sendText(); });
+  function sendText() {
+    var v = document.getElementById("txt").value;
+    if (v) { send({ type: "text", value: v }); document.getElementById("txt").value = ""; }
+  }
+
+  // Pointer: short press = tap, drag = swipe (normalized 0..1 coordinates)
+  canvas.addEventListener("pointerdown", function (e) { downPos = pos(e); });
+  canvas.addEventListener("pointerup", function (e) {
+    if (!downPos) return;
+    var p = pos(e), dx = p.x - downPos.x, dy = p.y - downPos.y;
+    if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) {
+      send({ type: "tap", x: p.x, y: p.y });
+    } else {
+      send({ type: "swipe", x1: downPos.x, y1: downPos.y, x2: p.x, y2: p.y, ms: 300 });
+    }
+    downPos = null;
+  });
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    return { x: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1),
+             y: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1) };
+  }
+
+  setInterval(function () {
+    var now = Date.now();
+    fpsEl.textContent = frames + " fps";
+    frames = 0;
+  }, 1000);
+
+  connect();
+</script>
+</body>
+</html>

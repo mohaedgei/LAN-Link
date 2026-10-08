@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">LAN-Link</string>
+    <string name="a11y_label">LAN-Link Control</string>
+    <string name="a11y_label_desc">LAN-Link remote control</string>
+    <string name="ime_label">LAN-Link Text</string>
+
+    <string name="status_title">Connection</string>
+    <string name="status_idle">Not connected</string>
+
+    <string name="hint_host">PC IP address (e.g. 192.168.1.10)</string>
+    <string name="hint_port">Server port (e.g. 8080)</string>
+    <string name="hint_token">Session code from the QR (6 chars)</string>
+
+    <string name="btn_scan">Scan QR to connect</string>
+    <string name="btn_screen">Start screen share</string>
+    <string name="btn_front">Start front camera</string>
+    <string name="btn_back">Start back camera</string>
+    <string name="btn_stop">Stop streaming</string>
+
+    <string name="setup_title">One-time setup (for full remote control)</string>
+    <string name="setup_body">1. Settings > Accessibility > LAN-Link Control -> ON\n2. Settings > System > Languages &amp; input > On-screen keyboard > LAN-Link Text -> ON\nWhen typing remotely, switch the keyboard to LAN-Link Text.</string>
+
+    <string name="notif_channel">LAN-Link streaming</string>
+    <string name="notif_title">LAN-Link is streaming</string>
+    <string name="notif_text">Sharing with your PC over local WiFi</string>
+    <string name="notif_stop">Stop</string>
+
+    <string name="scanner_hint">Point the camera at the QR code shown on your PC</string>
+</resources>
