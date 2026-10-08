@@ -47,19 +47,32 @@ class ScreenCapture(
         val outW = (screenW * scale).toInt() / 2 * 2
         val outH = (screenH * scale).toInt() / 2 * 2
 
-        val reader = android.media.ImageReader.newInstance(outW, outH, android.graphics.PixelFormat.RGBA_8888, 2)
+        val reader = android.media.ImageReader.newInstance(outW, outH, android.graphics.PixelFormat.RGBA_8888, MAX_IMAGES)
         reader.setOnImageAvailableListener({ r ->
-            val image = r.acquireLatestImage() ?: return@setOnImageAvailableListener
+            // IMPORTANT: the image is acquired on the worker thread, never here.
+            // If we acquired on this (main) callback and closed later on the
+            // worker, a burst of frames would exhaust maxImages and throw
+            // "IllegalStateException: maxImages (N) has already been acquired"
+            // on the main thread, crashing the whole app after a few seconds
+            // of streaming. The single-thread worker guarantees at most ONE
+            // acquired image at any time; acquireLatestImage() also drops any
+            // stale queued frames, giving us natural back-pressure.
             worker.execute {
+                val image = try {
+                    r.acquireLatestImage()
+                } catch (_: Throwable) {
+                    null
+                } ?: return@execute
                 try {
                     val now = SystemClock.elapsedRealtime()
                     if (now - lastSent >= intervalMs) {
                         lastSent = now
                         onFrame(imageToJpeg(image))
                     }
-                } catch (_: Exception) {
+                } catch (_: Throwable) {
+                    // one bad frame must never kill the app
                 } finally {
-                    try { image.close() } catch (_: Exception) {}
+                    try { image.close() } catch (_: Throwable) {}
                 }
             }
         }, mainHandler)
@@ -93,6 +106,7 @@ class ScreenCapture(
         try { projection.unregisterCallback(this) } catch (_: Exception) {}
         virtualDisplay = null
         imageReader = null
+        try { worker.shutdownNow() } catch (_: Exception) {}
     }
 
     private fun imageToJpeg(image: Image): ByteArray {
@@ -130,5 +144,6 @@ class ScreenCapture(
         const val TARGET_WIDTH = 1280f
         const val TARGET_HEIGHT = 720f
         const val JPEG_QUALITY = 60
+        const val MAX_IMAGES = 3
     }
 }
