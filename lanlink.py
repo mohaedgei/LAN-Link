@@ -169,8 +169,16 @@ def show_running_card(handle, via: str) -> None:
     print(f"  Session  : {BRIGHT}{token}{RESET}  {DIM}(stable — the app saves it){RESET}")
     route = "direct LAN connection" if via == "direct" else f"through {config.SITE_URL}"
     print(f"  Route    : {route}")
-    print(f"  Website  : {GREEN}{config.SITE_URL}{RESET}  {DIM}({site_state}){RESET}")
+    line()
+    print(f"  {BRIGHT}YOUR LINKS{RESET}  {DIM}(the session code ?t= is REQUIRED){RESET}")
+    print(f"  Watch in browser : {GREEN}{handle.viewer_url}{RESET}")
+    print(f"  App APK (WiFi)   : {GREEN}{handle.base_url}/app.apk?t={token}{RESET}")
+    line()
+    print(f"  Website  : {config.SITE_URL}  {DIM}({site_state}){RESET}")
     print(f"  App APK  : {GREEN}{config.SITE_APK_URL}{RESET}")
+    line()
+    print(f"  {DIM}Opening {handle.base_url} without ?t= shows a code page —{RESET}")
+    print(f"  {DIM}always use the full links above.{RESET}")
     line()
 
 
@@ -218,6 +226,8 @@ def make_qr_and_wait(handle, cmd: str, via: str) -> None:
     print(f"  Target : {ip}:{port}  {DIM}({route}){RESET}")
     print(f"  Session: {BRIGHT}{token}{RESET}")
     print(f"  Valid  : 24 hours")
+    line()
+    print(f"  Watch in browser : {GREEN}http://{ip}:{port}/?t={token}{RESET}")
     line()
     print(f"  Scan it with the LAN-Link app (camera or a saved picture).")
     print(f"  {DIM}This screen waits for the app — Ctrl+C returns to the menu,{RESET}")
@@ -283,6 +293,8 @@ def show_session_info(handle, via: str) -> None:
     print(f"  Server   : {handle.base_url}  (uptime {int(time.time() - handle.hub.started_at)}s)")
     print(f"  Session  : {BRIGHT}{handle.token}{RESET}")
     print(f"  Feature  : {handle.hub.requested_feature}")
+    print(f"  Watch in browser : {GREEN}{handle.viewer_url}{RESET}")
+    print(f"  App APK (WiFi)   : {GREEN}{handle.base_url}/app.apk?t={handle.token}{RESET}")
     print(f"  Device   : "
           f"{GREEN}connected{RESET}" if handle.hub.device is not None and not handle.hub.device.closed
           else f"  Device   : {DIM}not connected yet{RESET}")

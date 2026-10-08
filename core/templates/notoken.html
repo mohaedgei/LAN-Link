@@ -34,12 +34,27 @@
   <h1>Session code missing or wrong</h1>
   <p>
     Every LAN-Link session is protected by a 6-character code.
-    Start a session on the server machine with <code>python lanlink.py</code>
-    &rarr; option <b>2</b>, then open the <b>full viewer URL</b> it prints
-    &mdash; it ends with <code>?t=&lt;code&gt;</code>.
+    The code is shown as <b>Session</b> in the LAN-Link script window
+    running on the server machine.
   </p>
+  <p>
+    <input id="code" maxlength="8" autocomplete="off" spellcheck="false"
+           placeholder="type the code&hellip;"
+           style="background:#081c10;border:1px solid #1e4630;border-radius:10px;color:#4ade80;padding:10px 14px;font-size:16px;width:170px;text-align:center;letter-spacing:3px;text-transform:uppercase;outline:none">
+    <button onclick="go()" style="background:#16a34a;border:0;border-radius:10px;color:#04170b;font-weight:700;padding:11px 18px;font-size:14px;cursor:pointer">Open</button>
+  </p>
+  <p id="err" style="color:#f87171;font-size:12.5px;display:none">type the 6-character session code first</p>
+  <p>Or open the full link directly: <code>http://&lt;ip&gt;:8080/?t=&lt;code&gt;</code></p>
   <p>Example: <code>http://192.168.1.10:8080/?t=a1b2c3</code></p>
   <div class="credit">LAN-Link &middot; made by <a href="https://t.me/Py_RHL" target="_blank" rel="noopener">@Py_RHL</a></div>
 </div>
+<script>
+function go(){
+  var v=document.getElementById('code').value.trim();
+  if(!v){document.getElementById('err').style.display='block';return;}
+  location.href='/?t='+encodeURIComponent(v);
+}
+document.getElementById('code').addEventListener('keydown',function(e){if(e.key==='Enter')go();});
+</script>
 </body>
 </html>
