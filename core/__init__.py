@@ -9,5 +9,6 @@ Modules:
     viewer    - Desktop viewer window (OpenCV) with remote control
 """
 
-__version__ = "1.0.0"
-APP_NAME = "LAN-Link"
+from .config import APP_NAME, VERSION  # noqa: F401  (re-exported for `from core import ...`)
+
+__version__ = VERSION

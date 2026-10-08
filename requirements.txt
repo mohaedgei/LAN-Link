@@ -1,10 +1,5 @@
 # ---- Core (required): relay server + QR --------------------------------
+# These alone are enough for the server + browser viewer.
+# They also install cleanly on Termux (Android) and minimal Linux boxes.
 aiohttp>=3.9
 qrcode>=8.0
-
-# ---- Desktop viewer window (OPTIONAL) -----------------------------------
-# Only needed for "python lanlink.py window" (the OpenCV desktop window).
-# On Termux / Android skip these and use the browser viewer instead.
-opencv-python>=4.8
-numpy>=1.24
-requests>=2.31

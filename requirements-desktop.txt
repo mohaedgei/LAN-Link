@@ -1,0 +1,6 @@
+# ---- Desktop viewer window (OPTIONAL) -----------------------------------
+# Only needed for "python lanlink.py window" (the OpenCV desktop window).
+# On Termux / Android skip this file and use the browser viewer instead.
+opencv-python>=4.8
+numpy>=1.24
+requests>=2.31

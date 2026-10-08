@@ -96,13 +96,18 @@ def run(ip: str, port: int) -> None:
     print("=" * 62)
 
     # 1) Bundle the connection defaults into the app assets -------------
-    config.save_properties(config.APP_PROPERTIES_FILE, {
-        "host": ip,
-        "port": str(port),
-    })
-    _ok(f"Connection defaults written: {config.APP_PROPERTIES_FILE}")
-    _info(f"    host = {ip}")
-    _info(f"    port = {port}")
+    try:
+        config.save_properties(config.APP_PROPERTIES_FILE, {
+            "host": ip,
+            "port": str(port),
+        })
+        _ok(f"Connection defaults written: {config.APP_PROPERTIES_FILE}")
+        _info(f"    host = {ip}")
+        _info(f"    port = {port}")
+    except OSError:
+        # Read-only location (e.g. Termux shared storage) — the build can
+        # still proceed or the guidance below still applies.
+        _warn(f"Could not write {config.APP_PROPERTIES_FILE} (read-only location)")
 
     # 2) Toolchain check -------------------------------------------------
     print()

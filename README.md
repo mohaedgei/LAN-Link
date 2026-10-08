@@ -67,8 +67,9 @@ LAN-Link IME (text). Protocol details: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ### 0. Requirements
 
-- PC: Python 3.10+ and the packages from `requirements.txt`
-  (`pip install -r requirements.txt`)
+- PC: Python 3.10+ and the core packages — `pip install -r requirements.txt`
+  (for the optional OpenCV desktop window add
+  `pip install -r requirements-desktop.txt`)
 - Phone: Android 7.0+ (API 24), same WiFi as the PC
 - For the automatic APK build: JDK 17+, Gradle and the Android SDK
   (Android Studio bundles all of them) — *or just let GitHub Actions
@@ -133,14 +134,15 @@ phone running Termux** can act as the server/viewer:
 
 **Linux**
 ```bash
-pip install -r requirements.txt      # or minimal: pip install aiohttp qrcode
+pip install -r requirements.txt            # core: server + QR
+pip install -r requirements-desktop.txt    # optional: OpenCV desktop window
 python3 lanlink.py
 ```
 
 **Termux (a second Android phone as the "PC")**
 ```bash
 pkg update && pkg install python git
-pip install aiohttp qrcode           # skip opencv — use the browser viewer
+pip install -r requirements.txt      # aiohttp + qrcode only — Termux-safe
 python lanlink.py                    # option 2 -> QR -> stream
 ```
 
@@ -265,12 +267,13 @@ GitHub website without any special token:
 
 ```bash
 # لينكس:
-pip install aiohttp qrcode
+pip install -r requirements.txt            # الأساسيات: السيرفر + QR
+pip install -r requirements-desktop.txt    # اختياري: نافذة سطح المكتب (OpenCV)
 python3 lanlink.py
 
 # تيرمكس (موبايل تاني):
 pkg update && pkg install python git
-pip install aiohttp qrcode
+pip install -r requirements.txt      # aiohttp + qrcode فقط — آمنة على تيرمكس
 python lanlink.py
 ```
 

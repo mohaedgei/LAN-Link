@@ -3,7 +3,7 @@
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # Project root = parent of the "core" package folder
 ROOT = Path(__file__).resolve().parent.parent

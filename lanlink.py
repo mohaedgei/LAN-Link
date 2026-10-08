@@ -57,23 +57,26 @@ def option_build() -> None:
 # Option 2 — start a feature and show the QR
 # ---------------------------------------------------------------------
 
-def option_start() -> None:
+def option_start(feature: str | None = None, host: str | None = None,
+                 port: int | None = None, view: str | None = None) -> None:
     print()
-    print("  Which feature do you want to run?")
-    print("    1) Screen share (+ full remote control)")
-    print("    2) Front camera")
-    print("    3) Back camera")
-    choice = input("  Select feature [1]: ").strip() or "1"
-    feature = {"1": "screen", "2": "front", "3": "back"}.get(choice)
-    while feature is None:
-        print("  [!] Please choose 1, 2 or 3")
+    if feature is None:
+        print("  Which feature do you want to run?")
+        print("    1) Screen share (+ full remote control)")
+        print("    2) Front camera")
+        print("    3) Back camera")
         choice = input("  Select feature [1]: ").strip() or "1"
         feature = {"1": "screen", "2": "front", "3": "back"}.get(choice)
+        while feature is None:
+            print("  [!] Please choose 1, 2 or 3")
+            choice = input("  Select feature [1]: ").strip() or "1"
+            feature = {"1": "screen", "2": "front", "3": "back"}.get(choice)
 
     defaults = config.load_properties(config.APP_PROPERTIES_FILE)
-    ip = defaults.get("host") or netutils.get_lan_ip()
-    ip = netutils.ask_ip(ip)
-    port = netutils.ask_port(int(defaults.get("port", config.DEFAULT_PORT)))
+    auto_ip = host or defaults.get("host") or netutils.get_lan_ip()
+    ip = host or netutils.ask_ip(auto_ip)
+    if port is None:
+        port = netutils.ask_port(int(defaults.get("port", config.DEFAULT_PORT)))
     remember_defaults(ip, port)
 
     print()
@@ -93,11 +96,18 @@ def option_start() -> None:
     print(f"  Desktop window    : run  python lanlink.py window -p {port} -t {handle.token} -f {feature}")
     print()
 
-    mode = input("  Open viewer now?  [1] Browser  [2] Desktop window  [3] Both  [1]: ").strip() or "1"
-    if mode in ("1", "3"):
+    if view is None:
+        mode = input("  Open viewer now?  [1] Browser  [2] Desktop window  [3] Both  [1]: ").strip() or "1"
+        open_browser = mode in ("1", "3")
+        open_window = mode in ("2", "3")
+    else:
+        open_browser = view in ("browser", "both")
+        open_window = view in ("window", "both")
+
+    if open_browser:
         webbrowser.open(handle.viewer_url)
         print("  [OK] Browser viewer opened")
-    if mode in ("2", "3"):
+    if open_window:
         print("  Opening desktop window (press q in the window to close it)...")
         try:
             # Imported lazily: opencv-python is optional (not available on Termux)
@@ -122,7 +132,12 @@ def option_start() -> None:
 
 def remember_defaults(ip: str, port: int) -> None:
     """Persist the last used IP/port so option 2 can prefill them."""
-    config.save_properties(config.APP_PROPERTIES_FILE, {"host": ip, "port": str(port)})
+    try:
+        config.save_properties(config.APP_PROPERTIES_FILE, {"host": ip, "port": str(port)})
+    except OSError:
+        # Read-only location (e.g. shared storage without write permission,
+        # such as Termux before `termux-setup-storage`). Not fatal.
+        print("  [i] Could not save defaults (read-only location) — continuing")
 
 
 # ---------------------------------------------------------------------
@@ -130,12 +145,14 @@ def remember_defaults(ip: str, port: int) -> None:
 # ---------------------------------------------------------------------
 
 def cmd_window(args) -> None:
-    from core.viewer import run_window
-    ip = args.host or netutils.get_lan_ip()
     try:
-        run_window(f"http://{ip}:{args.port}", args.token, args.feature)
+        from core.viewer import run_window
     except ImportError:
-        print("  [!] opencv-python is not installed:  pip install -r requirements.txt")
+        print("  [!] opencv-python is not installed:")
+        print("       pip install -r requirements-desktop.txt   (or use the browser viewer)")
+        return
+    ip = args.host or netutils.get_lan_ip()
+    run_window(f"http://{ip}:{args.port}", args.token, args.feature)
 
 
 def main() -> int:
@@ -161,12 +178,16 @@ def main() -> int:
     if args.cmd == "build":
         option_build()
     elif args.cmd == "start":
-        option_start()
+        option_start(feature=args.feature, host=args.host, port=args.port, view=args.view)
     elif args.cmd == "window":
         cmd_window(args)
     else:
         while True:
-            choice = menu()
+            try:
+                choice = menu()
+            except EOFError:
+                print("\n  Bye!\n")
+                return 0
             if choice == "1":
                 option_build()
             elif choice == "2":
@@ -182,6 +203,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         print("\n  [OK] Stopped\n")
         sys.exit(0)

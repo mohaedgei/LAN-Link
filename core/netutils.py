@@ -50,12 +50,18 @@ def ask_ip(default_ip: str | None = None) -> str:
     """Prompt the user for the LAN IP, auto-detected by default."""
     auto = default_ip or get_lan_ip()
     print(f"  Auto-detected LAN IP: {auto}")
-    raw = input(f"  Your PC IP on the WiFi network [{auto}]: ").strip()
+    try:
+        raw = input(f"  Your PC IP on the WiFi network [{auto}]: ").strip()
+    except EOFError:
+        return auto
     if not raw:
         return auto
     while not is_valid_ip(raw):
         print("  [!] Invalid IPv4 address, try again (e.g. 192.168.1.10)")
-        raw = input(f"  Your PC IP on the WiFi network [{auto}]: ").strip()
+        try:
+            raw = input(f"  Your PC IP on the WiFi network [{auto}]: ").strip()
+        except EOFError:
+            return auto
         if not raw:
             return auto
     return raw
@@ -63,13 +69,19 @@ def ask_ip(default_ip: str | None = None) -> str:
 
 def ask_port(default_port: int) -> int:
     """Prompt the user for the server port."""
-    raw = input(f"  Server port [{default_port}]: ").strip()
+    try:
+        raw = input(f"  Server port [{default_port}]: ").strip()
+    except EOFError:
+        return default_port
     if not raw:
         return default_port
     while True:
         if raw.isdigit() and 1024 <= int(raw) <= 65535:
             return int(raw)
         print("  [!] Port must be a number between 1024 and 65535")
-        raw = input(f"  Server port [{default_port}]: ").strip()
+        try:
+            raw = input(f"  Server port [{default_port}]: ").strip()
+        except EOFError:
+            return default_port
         if not raw:
             return default_port
