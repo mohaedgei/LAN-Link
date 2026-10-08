@@ -40,6 +40,8 @@ class Hub:
         self.viewers = set()          # WebSocketResponse of browser viewers
         self.latest_frame = b""
         self.frame_time = 0.0
+        self.frames = 0               # total binary frames received from the app
+        self.connected_at = 0.0       # when the app last joined
         self.started_at = time.time()
         # APK download stats (this session + all-time, persisted by config)
         self.apk_downloads = 0
@@ -186,11 +188,18 @@ def make_app(hub: Hub) -> web.Application:
         role = request.query.get("role", "viewer")
 
         if role == "stream":
+            # v2.1: the app names the feature it wants in the URL, so one
+            # running server can serve screen / front / back without a restart
+            wanted = request.query.get("feature", "")
+            if wanted in config.FEATURES:
+                hub.requested_feature = wanted
             hub.device = ws
+            hub.connected_at = time.time()
             log(f"Device connected (feature requested: {hub.requested_feature})")
             await hub.broadcast_status("device-connected")
             async for msg in ws:
                 if msg.type == WSMsgType.BINARY:
+                    hub.frames += 1
                     await hub.broadcast_frame(msg.data)
                 elif msg.type == WSMsgType.TEXT:
                     try:
@@ -263,7 +272,9 @@ def make_app(hub: Hub) -> web.Application:
             "feature": hub.requested_feature,
             "viewers": len(hub.viewers),
             "has_frame": bool(hub.latest_frame),
+            "frames": hub.frames,
             "fps_hint": round(1.0 / (time.time() - hub.frame_time), 1) if hub.frame_time else 0.0,
+            "connected_sec": round(time.time() - hub.connected_at, 1) if hub.connected_at else 0.0,
             "uptime_sec": round(time.time() - hub.started_at, 1),
             "apk_downloads": hub.apk_downloads,
             "apk_downloads_total": hub.apk_downloads_base + hub.apk_downloads,

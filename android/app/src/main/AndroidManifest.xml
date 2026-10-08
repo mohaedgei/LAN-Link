@@ -36,11 +36,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Built-in QR scanner -->
-        <activity
-            android:name=".ScannerActivity"
-            android:exported="false" />
-
         <!-- Streaming foreground service (screen or camera -> PC server) -->
         <service
             android:name=".StreamService"

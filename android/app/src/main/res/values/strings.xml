@@ -26,4 +26,6 @@
     <string name="notif_stop">Stop</string>
 
     <string name="scanner_hint">Point the camera at the QR code shown on your PC</string>
+    <string name="encrypted_hint_short">Encrypted QRs open the connection — normal QRs are shown like any reader</string>
+    <string name="actions_label">ACTIONS</string>
 </resources>

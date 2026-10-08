@@ -1,170 +1,233 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"
-    android:fillViewport="true">
+    android:background="@color/background_dark">
 
-    <LinearLayout
+    <!-- ============================================================= -->
+    <!-- PANEL 1 — the QR reader (like any QR Code Reader app)         -->
+    <!-- ============================================================= -->
+    <FrameLayout
+        android:id="@+id/scanPanel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:layout_height="match_parent">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
-            android:text="@string/app_name"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="2dp"
-            android:text="@string/tagline"
-            android:textColor="@color/text_dim"
-            android:textSize="13sp" />
-
-        <TextView
-            android:id="@+id/statusText"
+        <androidx.camera.view.PreviewView
+            android:id="@+id/preview"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@color/surface_dark"
-            android:padding="14dp"
-            android:text="@string/status_idle"
-            android:textColor="@color/text_dim"
-            android:textSize="14sp" />
+            android:layout_height="match_parent" />
 
-        <!-- ================= SCAN PANEL (default) ================= -->
+        <!-- dim overlay above/below the scan box is skipped for
+             simplicity — the bright frame below guides the eye -->
+        <FrameLayout
+            android:layout_width="260dp"
+            android:layout_height="260dp"
+            android:layout_gravity="center"
+            android:background="@drawable/scan_frame" />
+
         <LinearLayout
-            android:id="@+id/scanPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <Button
-                android:id="@+id/btnScan"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:layout_marginTop="22dp"
-                android:backgroundTint="@color/primary"
-                android:text="@string/btn_scan_now"
-                android:textColor="#04120B"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnPickImage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:backgroundTint="@color/primary_variant"
-                android:text="@string/btn_pick_image"
-                android:textColor="#FFFFFF" />
+            android:orientation="vertical"
+            android:layout_gravity="top"
+            android:padding="20dp"
+            android:background="#66000000">
 
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:background="@color/surface_dark"
-                android:padding="14dp"
-                android:text="@string/hint_encrypted"
+                android:text="@string/app_name"
+                android:textColor="@color/primary"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/status_idle"
                 android:textColor="@color/text_dim"
                 android:textSize="13sp" />
         </LinearLayout>
 
-        <!-- ================= CONTROL PANEL (after a scan) ================= -->
         <LinearLayout
-            android:id="@+id/controlPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_gravity="bottom"
+            android:background="#66000000"
+            android:padding="20dp">
 
             <TextView
-                android:layout_width="match_parent"
+                android:id="@+id/scanHint"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/target_label"
+                android:layout_gravity="center_horizontal"
+                android:gravity="center"
+                android:text="@string/scanner_hint"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="12dp"
+                android:text="@string/encrypted_hint_short"
                 android:textColor="@color/text_dim"
                 android:textSize="12sp" />
 
+            <Button
+                android:id="@+id/btnPickImage"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:backgroundTint="@color/surface_dark"
+                android:text="@string/btn_pick_image"
+                android:textColor="@color/primary"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ============================================================= -->
+    <!-- PANEL 2 — connected control panel                             -->
+    <!-- ============================================================= -->
+    <ScrollView
+        android:id="@+id/controlPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
             <TextView
-                android:id="@+id/targetText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/primary"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/tagline"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:background="@color/surface_dark"
-                android:padding="14dp"
-                android:text="@string/status_idle"
-                android:textColor="@color/primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:layout_marginTop="24dp"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/target_label"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1" />
+
+                <TextView
+                    android:id="@+id/targetText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/target_label"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace" />
+
+                <TextView
+                    android:id="@+id/connStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/status_idle"
+                    android:textColor="@color/primary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="10dp"
+                android:text="@string/actions_label"
+                android:textColor="@color/text_dim"
+                android:textSize="12sp"
+                android:letterSpacing="0.1" />
 
             <Button
                 android:id="@+id/btnScreen"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:layout_marginTop="18dp"
-                android:backgroundTint="@color/primary"
+                android:layout_height="58dp"
+                android:backgroundTint="@color/primary_variant"
                 android:text="@string/btn_screen"
-                android:textColor="#04120B"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
 
             <Button
                 android:id="@+id/btnFront"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="58dp"
                 android:layout_marginTop="10dp"
                 android:backgroundTint="@color/primary_variant"
                 android:text="@string/btn_front"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
 
             <Button
                 android:id="@+id/btnBack"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="58dp"
                 android:layout_marginTop="10dp"
                 android:backgroundTint="@color/primary_variant"
                 android:text="@string/btn_back"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
 
             <Button
                 android:id="@+id/btnStop"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:backgroundTint="@color/accent_red"
+                android:layout_height="52dp"
+                android:layout_marginTop="18dp"
+                android:backgroundTint="@color/surface_dark"
                 android:text="@string/btn_stop"
-                android:textColor="#FFFFFF" />
+                android:textColor="@color/accent_red"
+                android:textSize="14sp" />
 
             <Button
                 android:id="@+id/btnRescan"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
                 android:backgroundTint="@color/surface_dark"
                 android:text="@string/btn_rescan"
-                android:textColor="@color/text_dim" />
-        </LinearLayout>
+                android:textColor="@color/text_dim"
+                android:textSize="13sp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:layout_marginBottom="10dp"
-            android:gravity="center"
-            android:text="@string/footer_credit"
-            android:textColor="@color/text_dim"
-            android:textSize="12sp" />
-    </LinearLayout>
-</ScrollView>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="28dp"
+                android:text="@string/footer_credit"
+                android:textColor="@color/text_dim"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

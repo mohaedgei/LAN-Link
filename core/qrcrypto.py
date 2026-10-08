@@ -60,13 +60,22 @@ def crypto_available() -> bool:
 
 
 def encrypt_ql1(cmd: str, host: str, port: int, token: str,
-                ttl: int = TTL_SECONDS) -> str | None:
-    """Build the encrypted QL1 payload, or None when no AES library exists."""
+                ttl: int = TTL_SECONDS, via: str = "direct",
+                site: str | None = None) -> str | None:
+    """Build the encrypted QL1 payload, or None when no AES library exists.
+
+    via="direct" -> the app opens ws://host:port straight away (LAN).
+    via="relay"  -> the app streams through the website relay instead
+                    (used when the PC advertises a public IP).
+    """
     if not crypto_available():
         return None
+    data = {"v": 1, "cmd": cmd, "host": host, "port": int(port),
+            "t": token, "exp": int(time.time()) + ttl, "via": via}
+    if site:
+        data["site"] = site
     payload = json.dumps(
-        {"v": 1, "cmd": cmd, "host": host, "port": int(port),
-         "t": token, "exp": int(time.time()) + ttl},
+        data,
         separators=(",", ":"),
     ).encode("utf-8")
     nonce = os.urandom(NONCE_LEN)

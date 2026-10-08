@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleService
 import com.lanlink.app.capture.CameraCapture
 import com.lanlink.app.capture.ScreenCapture
 import com.lanlink.app.control.ControlAccessibilityService
+import com.lanlink.app.net.RelayClient
 import com.lanlink.app.net.WsClient
 import org.json.JSONException
 import org.json.JSONObject
@@ -41,11 +42,14 @@ object StreamStatus {
 
 /**
  * Foreground service that:
- *  1. Connects to the PC server as a WebSocket client (role=stream).
+ *  1. Opens the transport chosen by the QR payload:
+ *       - direct (LAN):  WebSocket  ws://host:port/ws?...&role=stream
+ *       - relay (public IP): HTTPS POST frames through the website
  *  2. Starts the requested capture engine (screen / front / back).
- *  3. Pushes JPEG frames to the server.
- *  4. Executes control JSON coming back (tap / swipe / pinch / key / text)
- *     through the Accessibility service and the IME.
+ *  3. Pushes JPEG frames to the PC.
+ *  4. AUTO-RECONNECTS forever while the service is alive — if the PC
+ *     script restarts, the app quietly joins again. The user stops it
+ *     explicitly (Stop button / notification), or closing the app.
  */
 class StreamService : LifecycleService() {
 
@@ -54,14 +58,17 @@ class StreamService : LifecycleService() {
         const val EXTRA_PORT = "port"
         const val EXTRA_TOKEN = "token"
         const val EXTRA_FEATURE = "feature"
+        const val EXTRA_SITE = "site"      // relay base URL ("" = direct LAN)
         const val EXTRA_RESULT_CODE = "resultCode"
         const val EXTRA_RESULT_DATA = "resultData"
         const val ACTION_STOP = "com.lanlink.app.STOP"
         private const val CHANNEL_ID = "lanlink_stream"
         private const val NOTIFICATION_ID = 42
+        private const val RECONNECT_MS = 3000L
     }
 
     private var ws: WsClient? = null
+    private var relay: RelayClient? = null
     private var screen: ScreenCapture? = null
     private var camera: CameraCapture? = null
     private var projection: MediaProjection? = null
@@ -69,24 +76,39 @@ class StreamService : LifecycleService() {
     private var host: String = ""
     private var port: Int = 0
     private var token: String = ""
+    private var site: String = ""          // empty = direct LAN connection
+
+    private val main = Handler(Looper.getMainLooper())
+    private var retries = 0
+    @Volatile
+    private var userStopped = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
         if (intent?.action == ACTION_STOP) {
+            userStopped = true
             stopSelf()
             return START_NOT_STICKY
         }
 
-        host = intent?.getStringExtra(EXTRA_HOST).orEmpty()
+        val newHost = intent?.getStringExtra(EXTRA_HOST).orEmpty()
+        if (newHost.isEmpty()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // a re-launch (feature switch) re-initialises everything cleanly
+        teardownTransport()
+        stopCapture()
+
+        userStopped = false
+        retries = 0
+        host = newHost
         port = intent?.getIntExtra(EXTRA_PORT, 8080) ?: 8080
         token = intent?.getStringExtra(EXTRA_TOKEN).orEmpty()
         feature = intent?.getStringExtra(EXTRA_FEATURE) ?: "screen"
-
-        if (host.isEmpty()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
+        site = intent?.getStringExtra(EXTRA_SITE).orEmpty().trim().trimEnd('/')
 
         startInForeground(feature)
 
@@ -98,7 +120,7 @@ class StreamService : LifecycleService() {
             obtainProjection(resultCode, resultData)
         }
 
-        StreamStatus.set("Connecting to $host:$port ...")
+        StreamStatus.set(if (site.isEmpty()) "Connecting to $host:$port ..." else "Connecting via website relay ...")
         connect()
         return START_NOT_STICKY
     }
@@ -109,9 +131,10 @@ class StreamService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        userStopped = true
+        main.removeCallbacksAndMessages(null)
         stopCapture()
-        ws?.close()
-        ws = null
+        teardownTransport()
         releaseProjection()
         StreamStatus.set("Stopped")
         super.onDestroy()
@@ -158,30 +181,64 @@ class StreamService : LifecycleService() {
     }
 
     // ------------------------------------------------------------------
-    // WebSocket connection
+    // Transport + capture plumbing
     // ------------------------------------------------------------------
 
     private fun connect() {
-        val url = "ws://$host:$port/ws?t=$token&role=stream&feature=$feature"
-        ws = WsClient(
-            url = url,
-            onOpen = {
-                StreamStatus.set("Connected — starting $feature")
-                startCapture(feature)
-            },
-            onText = { raw ->
-                try {
-                    val json = JSONObject(raw)
-                    handleControl(json)
-                } catch (_: JSONException) {
-                }
-            },
-            onClosed = { reason ->
-                stopCapture()
-                StreamStatus.set("Disconnected: $reason")
-            }
-        )
-        ws?.connect()
+        if (userStopped) return
+        if (site.isEmpty()) {
+            // --- direct LAN: WebSocket to the PC server -------------------
+            val url = "ws://$host:$port/ws?t=$token&role=stream&feature=$feature"
+            ws = WsClient(
+                url = url,
+                onOpen = {
+                    retries = 0
+                    StreamStatus.set("Connected — starting $feature")
+                    startCapture(feature)
+                },
+                onText = { raw ->
+                    try {
+                        handleControl(JSONObject(raw))
+                    } catch (_: JSONException) {
+                    }
+                },
+                onClosed = { reason -> onTransportDown("Disconnected: $reason") }
+            )
+            ws?.connect()
+        } else {
+            // --- relay: frames go through the website ---------------------
+            relay = RelayClient(
+                siteBase = site,
+                token = token,
+                featureProvider = { feature },
+                onOpened = {
+                    retries = 0
+                    StreamStatus.set("Relay connected — starting $feature")
+                    startCapture(feature)
+                },
+                onClosed = { reason -> onTransportDown(reason) }
+            )
+            relay?.connect()
+        }
+    }
+
+    /** Never give up while the service lives — the PC may just be restarting. */
+    private fun onTransportDown(reason: String) {
+        stopCapture()
+        if (userStopped) {
+            StreamStatus.set(reason)
+            return
+        }
+        retries += 1
+        StreamStatus.set("$reason — reconnecting (#$retries) in ${RECONNECT_MS / 1000}s")
+        main.postDelayed({ connect() }, RECONNECT_MS)
+    }
+
+    private fun teardownTransport() {
+        try { ws?.close() } catch (_: Exception) {}
+        ws = null
+        try { relay?.close() } catch (_: Exception) {}
+        relay = null
     }
 
     private fun sendStatus(value: String) {
@@ -204,7 +261,7 @@ class StreamService : LifecycleService() {
                     StreamStatus.set("Screen consent missing — restart screen share from the app")
                     return
                 }
-                screen = ScreenCapture(this, p) { frame -> ws?.sendFrame(frame) }
+                screen = ScreenCapture(this, p) { frame -> pushFrame(frame) }
                     .also { it.start() }
             }
             "front" -> startCamera(front = true)
@@ -215,9 +272,14 @@ class StreamService : LifecycleService() {
         StreamStatus.set("Streaming $featureName")
     }
 
+    private fun pushFrame(jpeg: ByteArray) {
+        ws?.sendFrame(jpeg)
+        relay?.sendFrame(jpeg)
+    }
+
     private fun startCamera(front: Boolean) {
         camera?.stop()
-        camera = CameraCapture(this, front) { frame -> ws?.sendFrame(frame) }
+        camera = CameraCapture(this, front) { frame -> pushFrame(frame) }
             .also { it.start() }
     }
 
@@ -233,7 +295,7 @@ class StreamService : LifecycleService() {
         projection = null
     }
 
-    /** Switch features live (requested from the PC viewer buttons). */
+    /** Switch features live (requested from the PC viewer). */
     private fun switchFeature(newFeature: String) {
         if (newFeature == "stop") {
             stopCapture()
@@ -250,7 +312,7 @@ class StreamService : LifecycleService() {
     }
 
     // ------------------------------------------------------------------
-    // Control commands from the PC viewer
+    // Control commands from the PC viewer (direct mode only)
     // ------------------------------------------------------------------
 
     private fun handleControl(json: JSONObject) {
@@ -264,10 +326,6 @@ class StreamService : LifecycleService() {
     // MediaProjection plumbing (screen share)
     // ------------------------------------------------------------------
 
-    /**
-     * Store the projection obtained from the consent dialog result.
-     * Called from onStartCommand with the extras MainActivity provided.
-     */
     private fun obtainProjection(resultCode: Int, resultData: Intent?) {
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projection = try {
