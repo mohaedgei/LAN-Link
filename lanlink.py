@@ -8,11 +8,24 @@ and control the phone from your PC. 100% LAN, no cloud, no accounts.
 """
 
 import argparse
+import os
 import sys
 import webbrowser
 
 from core import APP_NAME, VERSION, config
 from core import builder, netutils, qrgen, server
+
+# --- terminal colors (harmless on Termux / Linux; enabled on Windows below) ---
+GREEN = "\033[92m"
+BRIGHT = "\033[1m"
+DIM = "\033[2m"
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+MAKER = "@Py_RHL"
+MAKER_URL = "https://t.me/Py_RHL"
+
+if os.name == "nt":
+    os.system("")  # enable ANSI escape codes in classic Windows terminals
 
 
 BANNER = r"""
@@ -26,12 +39,13 @@ BANNER = r"""
 
 
 def line() -> None:
-    print("-" * 62)
+    print(f"{DIM}{'-' * 62}{RESET}")
 
 
 def menu() -> str:
-    print(BANNER)
-    print(f"  {APP_NAME} v{VERSION}  |  local network only  |  MIT license")
+    print(f"{GREEN}{BRIGHT}{BANNER}{RESET}")
+    print(f"  {BRIGHT}{GREEN}{APP_NAME}{RESET} v{VERSION}  {DIM}|  local network only  |  MIT license"
+          f"  |  made by {GREEN}{MAKER}{RESET}")
     line()
     print("  [1] Build / prepare the Android app (APK)")
     print("  [2] Start a feature (screen share / front / back camera) + QR")
@@ -90,9 +104,10 @@ def option_start(feature: str | None = None, host: str | None = None,
     line()
     print(f"  Server      : {handle.base_url}")
     print(f"  Feature     : {config.FEATURE_LABELS[feature]}")
-    print(f"  Session code: {handle.token}")
+    print(f"  Session code: {GREEN}{handle.token}{RESET}")
     qrgen.make(handle.connect_url, feature, config.DIST_DIR)
     print(f"  PC browser viewer : {handle.viewer_url}")
+    print(f"  This device       : http://127.0.0.1:{port}/?t={handle.token}")
     print(f"  Desktop window    : run  python lanlink.py window -p {port} -t {handle.token} -f {feature}")
     print()
 

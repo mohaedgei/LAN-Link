@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to attach the APK to a Release
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,8 +32,26 @@ jobs:
         working-directory: android
         run: gradle :app:assembleDebug --no-daemon
 
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk LAN-Link.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: LAN-Link-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: LAN-Link.apk
+
+      # Attaches the APK to a rolling "APK-latest" release so that anyone
+      # can download it without signing in, via the permanent URL:
+      #   https://github.com/<owner>/<repo>/releases/latest/download/LAN-Link.apk
+      # The web viewer's green "Get the app" button redirects here when no
+      # local APK exists on the server machine.
+      - name: Attach APK to the latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: APK-latest
+          name: LAN-Link APK (auto-build)
+          files: LAN-Link.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          make_latest: "true"

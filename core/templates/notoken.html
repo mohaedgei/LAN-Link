@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAN-Link — session code required</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(900px 500px at 50% -10%, #0a2415 0%, #06130c 60%);
+    color: #eaf7ef; display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .card {
+    background: #0d2416; border: 1px solid #1e4630; border-radius: 20px;
+    padding: 34px 28px; max-width: 460px; width: 100%; text-align: center;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5);
+  }
+  .icon { font-size: 34px; margin-bottom: 10px; }
+  h1 { font-size: 19px; margin-bottom: 10px; color: #4ade80; }
+  p { color: #93c4a8; font-size: 14px; line-height: 1.8; }
+  p b { color: #eaf7ef; }
+  code { background: #081c10; border: 1px solid #1e4630; border-radius: 8px;
+         padding: 2px 8px; font-size: 13px; color: #4ade80; }
+  .credit { margin-top: 18px; font-size: 11.5px; color: #5c8a70; }
+  .credit a { color: #22c55e; text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">&#128273;</div>
+  <h1>Session code missing or wrong</h1>
+  <p>
+    Every LAN-Link session is protected by a 6-character code.
+    Start a session on the server machine with <code>python lanlink.py</code>
+    &rarr; option <b>2</b>, then open the <b>full viewer URL</b> it prints
+    &mdash; it ends with <code>?t=&lt;code&gt;</code>.
+  </p>
+  <p>Example: <code>http://192.168.1.10:8080/?t=a1b2c3</code></p>
+  <div class="credit">LAN-Link &middot; made by <a href="https://t.me/Py_RHL" target="_blank" rel="noopener">@Py_RHL</a></div>
+</div>
+</body>
+</html>

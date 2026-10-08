@@ -174,6 +174,25 @@ GitHub website without any special token:
 3. Paste the content, commit — done. The **Actions** tab will now build
    the APK on every push (download it from the run's *Artifacts*).
 
+The APK is also attached automatically to a rolling
+**LAN-Link APK (auto-build)** release, so it stays downloadable through a
+permanent link:
+
+```
+https://github.com/mohaedgei/LAN-Link/releases/latest/download/LAN-Link.apk
+```
+
+Even better: the **green “⬇ Get the app” button** inside the LAN-Link web
+viewer (and on the phone's connect page) serves that same APK — if an APK
+was built locally it streams straight from disk, otherwise it redirects to
+the release above. Anyone who opens the viewer link can install the app.
+
+### Can't build anywhere? That's fine on Termux
+
+Termux has no Android SDK, so `python lanlink.py -> 1` only saves your
+connection defaults and prints guidance. Use the GitHub Actions path above
+(or Android Studio on a PC) to get the actual `.apk` file.
+
 ## Security & responsible use
 
 - **Use LAN-Link only on devices you own, or with the owner's explicit
@@ -215,6 +234,8 @@ GitHub website without any special token:
 
 [MIT](LICENSE) — use it, fork it, build your own library on top of it.
 
+<p align="center">Made with 💚 by <a href="https://t.me/Py_RHL">@Py_RHL</a></p>
+
 ---
 
 <a id="العربية"></a>
@@ -254,6 +275,20 @@ GitHub website without any special token:
 3. الصق المحتوى واعمل commit — خلاص. من تاب **Actions** هتلاقي الـ APK
    جاهز للتحميل مع كل رفع جديد (من Artifacts).
 
+الـ APK كمان بيتحط أوتوماتيك في **Releases** بلينك دائم:
+
+```
+https://github.com/mohaedgei/LAN-Link/releases/latest/download/LAN-Link.apk
+```
+
+والأحلى: جوه صفحة المتصفح في تيرمكس في زرار أخضر **"⬇ Get the app"**
+(وكمان على صفحة الاتصال في الموبايل) بينزّل نفس الـ APK — لو في نسخة
+مبنية محلياً بيقدمها من الجهاز نفسه، ولو مفيش بيحوّلك على الريليز فوق.
+يعني أي حد يفتح لينك العرض يقدر ينزّل التطبيق ويثبته على طول.
+
+> ملحوظة: تيرمكس مفيهوش Android SDK، فالخيار 1 بيحفظ إعداداتك وبيرشّدك
+> بس — ملف الـ `.apk` الفعلي هييجي من GitHub Actions أو Android Studio.
+
 ### استخدام مسؤول
 
 استخدم الأداة **على أجهزتك أنت فقط أو بإذن صريح من صاحبها**. التطبيق
@@ -287,3 +322,7 @@ python lanlink.py
 
 - كل الطلبات محمية بكود جلسة (6 حروف) بيتولد مع كل تشغيل للخيار 2.
 - حافظ على البورت داخل الشبكة المحلية — لا تعمل port forwarding.
+
+### الصانع
+
+مشروع LAN-Link من صنع **[@Py_RHL](https://t.me/Py_RHL)** 💚

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # Project root = parent of the "core" package folder
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,6 +17,28 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 DEFAULT_PORT = 8080
 DEFAULT_FEATURE = "screen"
 FEATURES = ("screen", "front", "back")
+
+# Project home on GitHub (used by the in-page APK download button)
+REPO_URL = "https://github.com/mohaedgei/LAN-Link"
+RELEASE_APK_URL = f"{REPO_URL}/releases/latest/download/LAN-Link.apk"
+
+# Places a built APK may live (first match wins)
+APK_CANDIDATES = (
+    DIST_DIR / "LAN-Link.apk",
+    ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
+)
+
+
+def find_apk():
+    """Return the path of a locally built APK, or None."""
+    for candidate in APK_CANDIDATES:
+        try:
+            if candidate.exists() and candidate.stat().st_size > 1024:
+                return candidate
+        except OSError:
+            continue
+    return None
+
 
 FEATURE_LABELS = {
     "screen": "Screen share (+ remote control)",

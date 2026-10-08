@@ -187,3 +187,8 @@ def run(ip: str, port: int) -> None:
         _info("The connection defaults are already saved — the built app")
         _info("will connect to this PC automatically once installed.")
         print()
+        print("  C) No tools installed at all? Activate the GitHub Actions build")
+        print("     (README > 'Enable the GitHub Actions APK builder', 30 seconds).")
+        print("     The APK lands in the repo Releases, and the green")
+        print("     'Get the app' button inside the web viewer serves it.")
+        print()

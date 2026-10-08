@@ -9,41 +9,52 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #0b1220; color: #e7edf7;
+    background: radial-gradient(900px 500px at 50% -10%, #0a2415 0%, #06130c 60%);
+    color: #eaf7ef;
     display: flex; align-items: center; justify-content: center;
     min-height: 100vh; padding: 24px;
   }
   .card {
-    background: #111a2e; border: 1px solid #223251; border-radius: 20px;
+    background: #0d2416; border: 1px solid #1e4630; border-radius: 20px;
     padding: 36px 28px; max-width: 420px; width: 100%; text-align: center;
-    box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 0 0 4px rgba(34,197,94,.05);
   }
   .logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 16px;
-          background: linear-gradient(135deg, #2563eb, #7c3aed);
-          display: flex; align-items: center; justify-content: center; }
+          background: linear-gradient(135deg, #16a34a, #4ade80);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 8px 24px rgba(34,197,94,.35); }
   .logo svg { width: 36px; height: 36px; }
   h1 { font-size: 22px; margin-bottom: 6px; }
-  .sub { color: #93a4c3; font-size: 14px; margin-bottom: 22px; }
+  .sub { color: #93c4a8; font-size: 14px; margin-bottom: 22px; }
+  .sub b { color: #4ade80; }
   .spinner { width: 34px; height: 34px; margin: 0 auto 18px;
-             border: 3px solid #223251; border-top-color: #60a5fa;
+             border: 3px solid #1e4630; border-top-color: #4ade80;
              border-radius: 50%; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .btn {
     display: block; text-decoration: none; font-weight: 600;
-    background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff;
+    background: linear-gradient(135deg, #16a34a, #4ade80); color: #04170b;
     padding: 14px 18px; border-radius: 12px; font-size: 15px; margin-bottom: 14px;
+    box-shadow: 0 6px 18px rgba(34,197,94,.3);
   }
-  .details { text-align: left; background: #0b1220; border: 1px solid #223251;
+  .btn.alt {
+    background: #12301e; color: #c9ecd7; border: 1px solid #1e4630;
+    box-shadow: none; font-size: 14px; padding: 12px 18px;
+  }
+  .btn.alt:hover { background: #1a4529; }
+  .details { text-align: left; background: #081c10; border: 1px solid #1e4630;
              border-radius: 12px; padding: 12px 14px; font-size: 12.5px;
-             color: #93a4c3; line-height: 1.8; }
-  .details b { color: #e7edf7; font-weight: 600; }
-  .hint { font-size: 12px; color: #64748b; margin-top: 16px; line-height: 1.6; }
+             color: #93c4a8; line-height: 1.8; }
+  .details b { color: #eaf7ef; font-weight: 600; }
+  .hint { font-size: 12px; color: #5c8a70; margin-top: 16px; line-height: 1.6; }
+  .credit { margin-top: 18px; font-size: 11.5px; color: #5c8a70; }
+  .credit a { color: #22c55e; text-decoration: none; font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#04170b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
       <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
     </svg>
@@ -52,15 +63,17 @@
   <p class="sub">Opening the app&hellip; feature: <b>$feature</b></p>
   <div class="spinner"></div>
   <a class="btn" id="openBtn" href="$deep_link">Tap here if nothing opened</a>
+  <a class="btn alt" href="$apk_url">&#11015; Don&rsquo;t have the app? Download it (APK)</a>
   <div class="details">
     <div>Host: <b>$host</b></div>
     <div>Feature: <b>$feature</b></div>
     <div>Mode: <b>local WiFi only</b></div>
   </div>
   <p class="hint">
-    Don&rsquo;t have the app yet? Run <b>python lanlink.py</b> &rarr; option 1 on your PC
-    to build the APK, then come back and scan again.
+    After installing the APK, allow <b>Install unknown apps</b> for your browser,
+    open LAN-Link and scan the QR again.
   </p>
+  <div class="credit">made by <a href="https://t.me/Py_RHL" target="_blank" rel="noopener">@Py_RHL</a></div>
 </div>
 <script>
   // Auto-redirect into the app right away

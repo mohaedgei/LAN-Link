@@ -86,6 +86,12 @@ def _render_template(name: str, **values) -> str:
     return Template(text).safe_substitute(**values)
 
 
+def _no_token_response() -> web.Response:
+    """Friendly 403 page shown when the URL has no (or a wrong) session code."""
+    html = _render_template("notoken.html", repo_url=config.REPO_URL)
+    return web.Response(status=403, text=html, content_type="text/html")
+
+
 # ---------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------
@@ -102,7 +108,7 @@ def make_app(hub: Hub) -> web.Application:
         custom `lanlink://` scheme, with a manual fallback link.
         """
         if not hub.check_token(request):
-            return web.Response(status=403, text="LAN-Link: bad token")
+            return _no_token_response()
         feature = request.query.get("f", hub.requested_feature)
         deep_link = (
             f"lanlink://connect?host={request.host.split(':')[0]}"
@@ -114,15 +120,40 @@ def make_app(hub: Hub) -> web.Application:
             deep_link=deep_link,
             feature=feature,
             host=request.host,
+            apk_url=f"/app.apk?t={hub.token}",
+            repo_url=config.REPO_URL,
         )
         return web.Response(text=html, content_type="text/html")
 
     @routes.get("/")
     async def viewer_page(request):
         if not hub.check_token(request):
-            return web.Response(status=403, text="LAN-Link: bad token")
-        html = _render_template("viewer.html", token=hub.token, feature=hub.requested_feature)
+            return _no_token_response()
+        html = _render_template(
+            "viewer.html",
+            token=hub.token,
+            feature=hub.requested_feature,
+            repo_url=config.REPO_URL,
+        )
         return web.Response(text=html, content_type="text/html")
+
+    @routes.get("/app.apk")
+    async def app_apk(request):
+        """Serve the LAN-Link APK so anyone with the session link can install it.
+
+        If an APK was built locally (dist/ or the gradle output folder) it is
+        streamed straight from disk; otherwise the request is redirected to
+        the latest GitHub Release asset.
+        """
+        if not hub.check_token(request):
+            return _no_token_response()
+        apk = config.find_apk()
+        if apk is not None:
+            return web.FileResponse(
+                apk,
+                headers={"Content-Disposition": 'attachment; filename="LAN-Link.apk"'},
+            )
+        raise web.HTTPFound(config.RELEASE_APK_URL)
 
     @routes.get("/ws")
     async def websocket_handler(request):
