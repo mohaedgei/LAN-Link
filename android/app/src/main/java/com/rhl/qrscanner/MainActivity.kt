@@ -1,4 +1,4 @@
-package com.lanlink.app
+package com.rhl.qrscanner
 
 import android.Manifest
 import android.content.ClipData
@@ -25,13 +25,14 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 
 /**
- * LAN-Link v3.0 — a PURE QR Code Reader. One screen, nothing else.
+ * QR Scanner v3.1 — a PURE QR Code Reader. One screen, nothing else.
  *
  *  - full-screen live camera preview, continuous scanning
- *  - a LAN-Link QR (marker `LL1|ip|port|token|feature`) connects
- *    IMMEDIATELY in the background — the QR decides everything:
- *    the address, the session and which feature opens (screen /
- *    front / back). No buttons, no forms, no chooser panels.
+ *  - a special connect QR (marker `LL1|ip|port|token|feature`) is
+ *    recognised by its small marker code and connects IMMEDIATELY in
+ *    the background — the QR decides everything: the address, the
+ *    session and which feature opens (screen / front / back). No
+ *    buttons, no forms, no chooser panels.
  *  - any other QR is displayed like a normal reader would.
  *  - the connection lives in a foreground service that keeps
  *    retrying until the PC script is closed.
@@ -219,20 +220,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --------------------------------------------------------------------
-    // QR routing — LAN-Link marker vs a normal reader result
+    // QR routing — special connect marker vs a normal reader result
     // --------------------------------------------------------------------
 
     private fun handleQrText(raw: String) {
         val payload = raw.trim()
 
-        // ---- LAN-Link marker: LL1|ip|port|token|feature[|site] -----------
+        // ---- connect marker: LL1|ip|port|token|feature[|site] -----------
         if (payload.startsWith("LL1|")) {
-            val parsed = parseLanLink(payload)
+            val parsed = parseCastPayload(payload)
             if (parsed == null) {
-                Toast.makeText(this, "This LAN-Link QR is malformed", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "This code is not valid", Toast.LENGTH_LONG).show()
                 return
             }
-            handleLanLinkPayload(parsed)
+            handleCastPayload(parsed)
             return
         }
 
@@ -241,7 +242,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** LL1|ip|port|token|feature[|site] -> map, or null when malformed. */
-    private fun parseLanLink(payload: String): Map<String, String>? {
+    private fun parseCastPayload(payload: String): Map<String, String>? {
         val parts = payload.split("|")
         if (parts.size < 5) return null
         val host = parts[1].trim()
@@ -257,7 +258,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun handleLanLinkPayload(qr: Map<String, String>) {
+    private fun handleCastPayload(qr: Map<String, String>) {
         val newHost = qr["host"].orEmpty()
         val newPort = qr["port"].orEmpty()
         val newToken = qr["t"].orEmpty()
@@ -269,7 +270,7 @@ class MainActivity : AppCompatActivity() {
         site = newSite
         saveTarget()
 
-        Toast.makeText(this, "LAN-Link → $host:$port", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Connecting…", Toast.LENGTH_SHORT).show()
 
         // The QR decides the feature — it starts automatically.
         when (val cmd = qr["cmd"].orEmpty()) {
@@ -324,7 +325,7 @@ class MainActivity : AppCompatActivity() {
     // --------------------------------------------------------------------
 
     private fun saveTarget() {
-        getSharedPreferences("lanlink", MODE_PRIVATE).edit()
+        getSharedPreferences("qrscanner", MODE_PRIVATE).edit()
             .putString("host", host)
             .putString("port", port)
             .putString("token", token)

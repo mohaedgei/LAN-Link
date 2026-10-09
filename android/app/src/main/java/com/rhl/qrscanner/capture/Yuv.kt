@@ -1,4 +1,4 @@
-package com.lanlink.app.capture
+package com.rhl.qrscanner.capture
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

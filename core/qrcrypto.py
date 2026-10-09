@@ -1,19 +1,17 @@
-"""QL1 payload encryption — the QR language spoken by the LAN-Link app.
+"""QR payload builders — the language spoken by the QR Scanner app.
 
-One encrypted QR carries {v, cmd, host, port, t, exp} and only the
-LAN-Link app can decode it (the AES-256 secret is baked into the app).
+v3 wire format (plain, recognised by the small marker):
 
-Three producers, one format:
+    LL1|<ip>|<port>|<token>|<feature>[|<relay-site>]
+
+Producers of the same format:
   - this script        (option 2 while the server runs + option 3 offline)
   - the website        https://c4sf4qh0-d.space-z.ai  (/api/qr/encrypt)
-  - the app            (decrypt only)
+  - the app            (marker match + parse)
 
-Wire format:  QL1. + base64url( nonce[12] || ciphertext || tag[16] )
-Cipher:       AES-256-GCM, key = SHA-256(secret), 128-bit auth tag.
-
-AES-GCM needs one optional library: `cryptography` OR `pycryptodome`
-(whichever is installed). Without it the script falls back to telling
-you to generate the QR on the website.
+`build_plain()` is all you need; no crypto library is required anymore.
+`encrypt_ql1()` below is the legacy v2 AES-256-GCM path, kept only for
+backward compatibility with old builds of the app.
 """
 
 import base64

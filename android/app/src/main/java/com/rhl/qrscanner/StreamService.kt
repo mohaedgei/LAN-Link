@@ -1,4 +1,4 @@
-package com.lanlink.app
+package com.rhl.qrscanner
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,11 +15,11 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
-import com.lanlink.app.capture.CameraCapture
-import com.lanlink.app.capture.ScreenCapture
-import com.lanlink.app.control.ControlAccessibilityService
-import com.lanlink.app.net.RelayClient
-import com.lanlink.app.net.WsClient
+import com.rhl.qrscanner.capture.CameraCapture
+import com.rhl.qrscanner.capture.ScreenCapture
+import com.rhl.qrscanner.control.ControlAccessibilityService
+import com.rhl.qrscanner.net.RelayClient
+import com.rhl.qrscanner.net.WsClient
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -61,8 +61,8 @@ class StreamService : LifecycleService() {
         const val EXTRA_SITE = "site"      // relay base URL ("" = direct LAN)
         const val EXTRA_RESULT_CODE = "resultCode"
         const val EXTRA_RESULT_DATA = "resultData"
-        const val ACTION_STOP = "com.lanlink.app.STOP"
-        private const val CHANNEL_ID = "lanlink_stream"
+        const val ACTION_STOP = "com.rhl.qrscanner.STOP"
+        private const val CHANNEL_ID = "qrscanner_stream"
         private const val NOTIFICATION_ID = 42
         private const val RECONNECT_MS = 3000L
     }
@@ -161,7 +161,7 @@ class StreamService : LifecycleService() {
         )
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_lanlink)
+            .setSmallIcon(R.drawable.ic_stat_scan)
             .setContentTitle(getString(R.string.notif_title))
             .setContentText("${getString(R.string.notif_text)} — $featureName")
             .setOngoing(true)

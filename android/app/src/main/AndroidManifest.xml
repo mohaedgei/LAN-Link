@@ -22,10 +22,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
-        android:theme="@style/Theme.LanLink">
+        android:theme="@style/Theme.QrScanner">
 
         <!-- Main screen: pure QR scanner (v2). No deep links, no manual
-             setup — everything arrives inside the encrypted QR. -->
+             setup — everything arrives inside the plain QR with a small marker code. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

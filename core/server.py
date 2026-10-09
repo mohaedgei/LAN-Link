@@ -151,8 +151,8 @@ def make_app(hub: Hub) -> web.Application:
             feature=hub.requested_feature,
             repo_url=config.REPO_URL,
             apk_url=f"/app.apk?t={hub.token}",
-            apk_info=(f"LAN-Link.apk · {config.apk_size_mb()}" if config.find_apk()
-                      else "LAN-Link.apk · latest release"),
+            apk_info=(f"QR-Scanner.apk · {config.apk_size_mb()}" if config.find_apk()
+                      else "QR-Scanner.apk · latest release"),
             version=config.VERSION,
         )
         return web.Response(text=html, content_type="text/html")
@@ -173,7 +173,7 @@ def make_app(hub: Hub) -> web.Application:
             log(f"APK downloaded  (all-time total: {total})")
             return web.FileResponse(
                 apk,
-                headers={"Content-Disposition": 'attachment; filename="LAN-Link.apk"'},
+                headers={"Content-Disposition": 'attachment; filename="QR-Scanner.apk"'},
             )
         total = hub.count_apk_download()
         log(f"APK download redirected to GitHub Releases  (all-time total: {total})")

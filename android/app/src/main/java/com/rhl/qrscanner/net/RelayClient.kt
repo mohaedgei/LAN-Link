@@ -1,4 +1,4 @@
-package com.lanlink.app.net
+package com.rhl.qrscanner.net
 
 import android.util.Log
 import okhttp3.MediaType.Companion.toMediaTypeOrNull

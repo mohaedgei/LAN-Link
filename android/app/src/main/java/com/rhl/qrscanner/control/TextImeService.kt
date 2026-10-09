@@ -1,4 +1,4 @@
-package com.lanlink.app.control
+package com.rhl.qrscanner.control
 
 import android.content.Context
 import android.inputmethodservice.InputMethodService

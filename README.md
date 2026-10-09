@@ -26,30 +26,33 @@ A small Python script drives everything:
 - **Option 1** — builds the Android app for your network and tells you
   exactly where the APK is, ready to install.
 - **Option 2** — starts a feature (screen share / front camera / back
-  camera) and shows a **fully encrypted QR code**. Scan it with the app
-  and the connection + streaming starts automatically.
-- **Option 3** — prints the same encrypted QR **without running the
+  camera) and shows a **connect QR code**. Scan it with the QR Scanner
+  app and the connection + streaming starts automatically.
+- **Option 3** — prints the same connect QR **without running the
   server** (handy to pre-pair the phone), or generate it online at
   [c4sf4qh0-d.space-z.ai](https://c4sf4qh0-d.space-z.ai) — the companion
   site that also hosts the APK download and a live relay.
 
 ## Features
 
-- **v2 QR app — a pure scanner** — the app now does ONE thing: scan the
-  encrypted QR (or decode one from a picture). Inside is the PC address
-  + session code, sealed with **AES-256-GCM** so only the app can read
-  it. No manual IP entry, no codes to type, nothing else on screen —
-  just three buttons: **Watch Screen / Front Camera / Back Camera**.
+- **The phone app is a pure QR Scanner** — literally a QR reader
+  called **QR Scanner**: one screen, camera + scan frame, nothing else.
+  It reads any QR like a normal reader; a *connect QR* is recognised by
+  its small `LL1|` marker and connects by itself — the QR decides the
+  address, the session and the feature (screen / front / back). No
+  buttons, no forms, no manual IP entry, no feature panels.
 
 - **Screen share with full remote control** — watch the phone screen in
   the browser or a desktop window, then tap, swipe, pinch-zoom, press
   Back / Home / Recents and even type text from the PC.
 - **Front & back camera streaming** — live camera view at 720p.
-- **QR pairing, sealed** — one scan connects the phone to the PC. The
-  QL1 payload (`QL1.` + base64url(nonce ‖ ciphertext ‖ tag)) is produced
-  identically by the script, the website API (`/api/qr/encrypt`) and can
-  only be opened by the app; it also expires after 24 hours.
-- **Three buttons, nothing more** — screen / front camera / back camera.
+- **QR pairing, plain & honest** — one scan connects the phone to the
+  PC. The payload is human-readable (`LL1|ip|port|token|feature`) and
+  produced identically by the script and the website; anyone scanning it
+  with Lens sees exactly what it does, and the session code still gates
+  every endpoint on the server.
+- **One screen, nothing more** — the app has no settings, no feature
+  buttons and no manual connection forms. The QR runs the show.
 - **Full web dashboard** — the viewer page is a complete control center
   with four tabs: **Live** (stream + feature switches + fullscreen),
   **Remote control** (navigation keys, zoom, text typing with quick
@@ -57,9 +60,9 @@ A small Python script drives everything:
 - **Live stats** — the dashboard header shows stream fps, resolution,
   connected viewers, uptime and how many times the APK was downloaded
   (persisted all-time counter); the terminal logs each download too.
-- **Ready-made APK** — a built `LAN-Link.apk` ships in `dist/`, and the
-  green “⬇ Get the app” button on every page serves it instantly — no
-  build tools needed on any machine.
+- **Ready-made APK** — a built `QR-Scanner.apk` ships in `dist/`, and
+  the green “⬇ Get the app” button on every page serves it instantly —
+  no build tools needed on any machine.
 - **App remembers your setup** — IP, port and session code are saved by
   the app after the first pairing; next runs are one tap. The session
   code itself is stable between runs (`--new-token` rotates it).
@@ -72,10 +75,10 @@ A small Python script drives everything:
 ## How it works
 
 ```
-+----------------+  QR (http://pc-ip:port/c?t=token)  +----------------+
-|     PC (you)   |----------------------------------->|  Phone camera  |
-|  python CLI    |   Google Lens -> lanlink:// deep   |  or LAN-Link   |
-|  + server      |   link -> app opens + connects     |  app scanner   |
++----------------+   QR: LL1|ip|port|token|feature    +----------------+
+|     PC (you)   |----------------------------------->| QR Scanner app |
+|  python CLI    |   the small LL1 marker makes the   |  (pure reader, |
+|  + server      |   app connect + stream by itself   |  auto-connect) |
 +-------+--------+                                    +-------+--------+
         |            JPEG frames (WS, binary)                 |
         |  <--------------------------------------------------+
@@ -86,7 +89,7 @@ A small Python script drives everything:
 The PC runs the relay server (aiohttp). The phone connects as a WebSocket
 client and pushes JPEG frames. Viewers receive the frames and send control
 commands back through the Accessibility service (gestures) and the
-LAN-Link IME (text). Protocol details: [docs/PROTOCOL.md](docs/PROTOCOL.md).
+QR Scanner IME (text). Protocol details: [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ## Quick start
 
@@ -109,18 +112,19 @@ python lanlink.py
 # -> "THE APP IS READY: .../dist/LAN-Link.apk"
 ```
 
-Move `dist/LAN-Link.apk` to the phone and install it (allow *Install
+Move `dist/QR-Scanner.apk` to the phone and install it (allow *Install
 unknown apps* for your file manager when asked).
 
 ### 2. One-time setup on the phone
 
-1. Open **LAN-Link**.
-2. Grant the camera permission (for the camera features).
-3. Enable **Settings > Accessibility > LAN-Link Control** -> ON
-   *(required for remote tap/swipe/keys)*.
-4. Enable **Settings > System > Languages & input > On-screen keyboard >
-   LAN-Link Text** -> ON *(required for remote typing; switch the
-   keyboard to it when you want to type)*.
+1. Open **QR Scanner** — allow the camera when Android asks (that is
+   the only prompt; scanning works immediately after).
+2. For remote control (tap/swipe/keys) enable **Settings >
+   Accessibility > QR Scanner Control** -> ON.
+3. For remote typing enable **Settings > System > Languages & input >
+   On-screen keyboard > QR Scanner Text** -> ON.
+
+Everything else happens by itself when you scan a connect QR.
 
 ### 3. Start streaming (script option 2)
 
@@ -129,7 +133,7 @@ python lanlink.py
 # choose 2
 # pick: 1) Screen share  2) Front camera  3) Back camera
 # -> a QR code appears in the terminal (also saved as dist/qr-<feature>.png)
-# -> scan it with the LAN-Link app (in-app scanner) or Google Lens
+# -> scan it with the QR Scanner app
 # -> the app connects and the stream starts
 ```
 
@@ -150,7 +154,7 @@ On the PC, pick how to watch:
 | Left drag                         | Swipe                      |
 | `z` / `x` or Zoom +/- buttons     | Pinch zoom in / out        |
 | `b` / `h` / `r` or the buttons    | Back / Home / Recents      |
-| `t` then type (window) / text box | Type text via LAN-Link IME |
+| `t` then type (window) / text box | Type text via QR Scanner IME |
 | `1` / `2` / `3` (window)          | Switch screen/front/back   |
 | `q` / ESC                         | Close the window           |
 
@@ -180,14 +184,14 @@ Notes for Termux:
   (`http://<termux-ip>:8080/?t=<code>` from any browser on any device).
 - Get the Termux IP with `ifconfig wlan0` (or `pkg install net-tools`).
 - Phone-to-phone works: phone A runs Termux + browser viewer, phone B
-  runs the LAN-Link app. Same WiFi required.
+  runs the QR Scanner app. Same WiFi required.
 - If pip fails to build a wheel: `pkg install build-essential` then retry.
 
 ## Building the APK — 4 ways
 
 | Way | When | How |
 |-----|------|-----|
-| **Ready-made (v1.1.0+)** | Nothing installed at all | A built APK ships in `dist/LAN-Link.apk` — install it directly, or download it from the green button on any LAN-Link web page |
+| **Ready-made (v1.1.0+)** | Nothing installed at all | A built APK ships in `dist/QR-Scanner.apk` — install it directly, or download it from the green button on any LAN-Link web page |
 | Automatic (`python lanlink.py` -> 1) | JDK 17 + Gradle + Android SDK are installed | The script writes `assets/lanlink.properties` and runs `gradle :app:assembleDebug`, copying the APK to `dist/` |
 | Android Studio | Daily development | Open the `android/` folder, *Build > Build APK(s)* |
 | GitHub Actions | Nothing installed locally | Activate the build workflow once (below), then every push uploads the APK as an artifact |
@@ -208,7 +212,7 @@ The APK is also attached automatically to a rolling
 permanent link:
 
 ```
-https://github.com/mohaedgei/LAN-Link/releases/latest/download/LAN-Link.apk
+https://github.com/mohaedgei/LAN-Link/releases/latest/download/QR-Scanner.apk
 ```
 
 Even better: the **green “⬇ Get the app” button** inside the LAN-Link web
@@ -244,9 +248,9 @@ connection defaults and prints guidance. Use the GitHub Actions path above
   share from the phone app (or a QR with `f=screen`) so the system
   consent dialog can appear. Camera feeds can be switched live from the
   viewer.
-- **Remote tap not working** — enable *LAN-Link Control* in Accessibility
-  settings.
-- **Remote typing not working** — enable *LAN-Link Text* keyboard and
+- **Remote tap not working** — enable *QR Scanner Control* in
+  Accessibility settings.
+- **Remote typing not working** — enable *QR Scanner Text* keyboard and
   switch to it on the phone.
 - **Low fps** — both sides default to 720p JPEG @ ~10 fps; a strong 5GHz
   WiFi helps a lot.
@@ -280,26 +284,28 @@ connection defaults and prints guidance. Use the GitHub Actions path above
 - **الخيار 1** — يجهز التطبيق على شبكتك ويبني الـ APK ويقولك مكانه بالظبط
   عشان تثبته عادي على الموبايل وتديله الصلاحيات.
 - **الخيار 2** — يشغّل الميزة (مشاركة شاشة / كاميرا أمامية / كاميرا خلفية)
-  ويطلعلك **QR كود مشفّر بالكامل (AES-256-GCM)**. امسحه بالتطبيق — الاتصال
+  ويطلعلك **QR كود اتصال** (شايف محتواه على السطح — علامة `LL1` صغيرة
+  هي اللي بتعرف التطبيق إن ده كود اتصال). امسحه بالتطبيق — الاتصال
   والبث بيبدأوا لوحدهم.
-- **الخيار 3** — يطبع نفس الـ QR المشفّر **من غير تشغيل السيرفر**، أو
+- **الخيار 3** — يطبع نفس QR الاتصال **من غير تشغيل السيرفر**، أو
   اعمله أونلاين من [c4sf4qh0-d.space-z.ai](https://c4sf4qh0-d.space-z.ai)
   — الموقع الرسمي اللي فيه مولّد الـ QR + تحميل الـ APK + رلاي بث حي.
 
-> **جديد في v2.0.0:** التطبيق بقى **ماسح QR نقي** — شاشة واحدة: اسكان
-> (كاميرا أو صورة من الجاليري)، والـ QR جواه عنوان الكمبيوتر والكود
-> مشفّرين بحيث **مفيش حد غير التطبيق يقدر يفكهم**. بعد الاسكان: 3 زرار
-> بس — **شوف الشاشة / الكاميرا الأمامية / الكاميرا الخلفية**. مفيش
-> كتابة IP ولا إعدادات ولا حاجة تانية خالص. الـ QR بصلاحية 24 ساعة.
+> **جديد في v3.1:** التطبيق بقى اسمه **QR Scanner** — ماسح QR نقي زي
+> أي قارئ كودات: شاشة واحدة فيها الكاميرا واطار الاسكان وخلاص، مفيش أي
+> زرار أو شاشة صلاحيات جوه التطبيق. أي QR عادي بيفتح زي أي ماسح، لكن
+> كود الاتصال بيتعرّف عليه من العلامة الصغيرة `LL1|` (جواها IP + بورت +
+> كود الجلسة + الميزة) وبيتصل ويبدأ البث لوحده — الـ QR هو اللي بيقرر
+> كل حاجة. مفيش كتابة IP ولا إعدادات خالص.
 
 ### الخطوات باختصار
 
 1. `pip install -r requirements.txt`
 2. `python lanlink.py` → خيار **1** → يطلعلك APK في مجلد `dist/`
 3. ثبّت الـ APK على الموبايل وافتحه وادّيله الصلاحيات:
-   - إعدادات > **الوصولية (Accessibility)** > LAN-Link Control → ON
+   - إعدادات > **الوصولية (Accessibility)** > QR Scanner Control → ON
      *(للتحكم عن بعد: لمس/سحب/أزرار)*
-   - إعدادات > **اللغة والإدخال** > لوحات المفاتيح > LAN-Link Text → ON
+   - إعدادات > **اللغة والإدخال** > لوحات المفاتيح > QR Scanner Text → ON
      *(لكتابة النصوص عن بعد)*
 4. `python lanlink.py` → خيار **2** → اختار الميزة → امسح الـ QR
 5. اتفرج من المتصفح أو نافذة سطح المكتب، وتحكم: كليك = لمسة، سحب = سوايب،
@@ -308,7 +314,7 @@ connection defaults and prints guidance. Use the GitHub Actions path above
 ### تفعيل بيلد الـ APK أوتوماتيك من GitHub (مرة واحدة، 30 ثانية)
 
 > **جديد في v1.1.0:** في **APK جاهز ومبني** جوه المشروع في
-> `dist/LAN-Link.apk` — ثبّته على طول من غير أي أدوات، أو نزّله من زرار
+> `dist/QR-Scanner.apk` — ثبّته على طول من غير أي أدوات، أو نزّله من زرار
 > **"⬇ Get the app"** الأخضر في أي صفحة من صفحات LAN-Link. والتطبيق نفسه
 > بيحفظ الـ IP والبورت والكود بعد أول اتصال — يعني مرة واحدة وبس.
 
@@ -321,7 +327,7 @@ connection defaults and prints guidance. Use the GitHub Actions path above
 الـ APK كمان بيتحط أوتوماتيك في **Releases** بلينك دائم:
 
 ```
-https://github.com/mohaedgei/LAN-Link/releases/latest/download/LAN-Link.apk
+https://github.com/mohaedgei/LAN-Link/releases/latest/download/QR-Scanner.apk
 ```
 
 والأحلى: جوه صفحة المتصفح في تيرمكس في زرار أخضر **"⬇ Get the app"**
@@ -359,7 +365,7 @@ python lanlink.py
   `http://<ip-تيرمكس>:8080/?t=<الكود>` من أي متصفح على أي جهاز.
 - اطلع IP تيرمكس بأمر `ifconfig wlan0`.
 - تقدر تعمل موبايل-لموبايل: موبايل A عليه تيرمكس + المتصفح، وموبايل B
-  عليه تطبيق LAN-Link — بشرط نفس شبكة الواي فاي.
+  عليه تطبيق QR Scanner — بشرط نفس شبكة الواي فاي.
 
 ### الأمان
 

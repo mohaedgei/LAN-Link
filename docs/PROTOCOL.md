@@ -9,7 +9,6 @@ neighbors out.
 
 | Method | Path          | Purpose                                        |
 |--------|---------------|------------------------------------------------|
-| GET    | `/c?t=&f=`    | QR landing page -> deep-links into the app     |
 | GET    | `/?t=`        | Browser viewer (canvas + control bar)          |
 | WS     | `/ws?t=&role=stream\|viewer` | Device / viewer channel          |
 | GET    | `/frame.jpg?t=` | Latest JPEG frame (desktop window polling)   |
@@ -19,14 +18,15 @@ neighbors out.
 ## 2. QR content
 
 ```
-http://<pc-ip>:<port>/c?t=<token>&f=<feature>
+LL1|<pc-ip>|<port>|<token>|<feature>[|<relay-site>]
 ```
 
-The `/c` page redirects to `lanlink://connect?host=&port=&token=&feature=`
-which opens the installed app. The in-app scanner can read the same QR
-directly.
+A plain, human-readable payload. The phone app (a pure QR reader called
+**QR Scanner**) recognises the small `LL1|` marker and connects by
+itself — the QR decides the address, the session and the feature.
+Anyone scanning it with another reader sees exactly what it does.
 
-`feature` is one of `screen`, `front`, `back`.
+`feature` is one of `screen`, `front`, `back`, `any`.
 
 ## 3. WebSocket roles
 
@@ -54,7 +54,7 @@ directly.
 | Swipe        | `{"type":"swipe","x1":..,"y1":..,"x2":..,"y2":..,"ms":300}`        |
 | Pinch zoom   | `{"type":"pinch","dir":"in\|out"}`                                 |
 | Global key   | `{"type":"key","value":"back\|home\|recents\|notifications"}`      |
-| Type text    | `{"type":"text","value":"hello"}` (via LAN-Link IME)               |
+| Type text    | `{"type":"text","value":"hello"}` (via QR Scanner IME)             |
 
 ## 5. App connection defaults
 

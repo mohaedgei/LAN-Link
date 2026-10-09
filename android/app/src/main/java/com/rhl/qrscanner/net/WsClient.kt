@@ -1,4 +1,4 @@
-package com.lanlink.app.net
+package com.rhl.qrscanner.net
 
 import okhttp3.OkHttpClient
 import okhttp3.Request

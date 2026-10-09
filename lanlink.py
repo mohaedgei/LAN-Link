@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """LAN-Link — stream your Android phone screen & cameras over local WiFi.
 
-v2.1 flow:
+v3.1 flow:
     python lanlink.py            -> asks IP + port, runs the full doctor,
                                     starts the server, then the menu
-    python lanlink.py qr         -> same, then shows the encrypted QR
+    python lanlink.py qr         -> same, then shows the connect QR
     python lanlink.py qr -f screen --host 192.168.1.100 --port 8080
     python lanlink.py start      -> same as qr (kept for old habits)
 """
@@ -191,10 +191,10 @@ def menu(handle) -> str:
     print(f"  {BRIGHT}{GREEN}{APP_NAME}{RESET} v{VERSION}  {DIM}|  local network only  |  MIT license"
           f"  |  made by {GREEN}{MAKER}{RESET}")
     line()
-    print("  [1] Make the encrypted QR — Watch the screen")
-    print("  [2] Make the encrypted QR — Front camera")
-    print("  [3] Make the encrypted QR — Back camera")
-    print("  [4] Make the encrypted QR — Let me choose in the app")
+    print("  [1] Make the connect QR — Watch the screen")
+    print("  [2] Make the connect QR — Front camera")
+    print("  [3] Make the connect QR — Back camera")
+    print("  [4] Make the connect QR — Let me choose in the viewer")
     print("  [5] Session & website status")
     print("  [0] Exit")
     line()
@@ -354,7 +354,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="lanlink", description=APP_NAME)
     sub = parser.add_subparsers(dest="cmd")
 
-    qr = sub.add_parser("qr", help="setup + server + encrypted QR + wait for the app")
+    qr = sub.add_parser("qr", help="setup + server + connect QR + wait for the app")
     qr.add_argument("-f", "--feature", choices=config.QR_CMDS, default="any")
     qr.add_argument("-p", "--port", type=int)
     qr.add_argument("--host")

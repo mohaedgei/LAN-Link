@@ -6,7 +6,7 @@ Steps performed here:
        where to connect without typing anything.
     2. Detect JDK / Android SDK / Gradle on this machine.
     3. If the toolchain exists  -> run `gradle :app:assembleDebug` and copy
-       the APK to dist/LAN-Link.apk, printing its absolute path.
+       the APK to dist/QR-Scanner.apk, printing its absolute path.
        If something is missing -> print clear step-by-step guidance
        (Android Studio, or the GitHub Actions build bot).
 """
@@ -130,7 +130,7 @@ def run(ip: str, port: int) -> Path | None:
         built = config.ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
         if built.exists():
             config.DIST_DIR.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(built, config.DIST_DIR / "LAN-Link.apk")
+            shutil.copy2(built, config.DIST_DIR / "QR-Scanner.apk")
     except (subprocess.CalledProcessError, OSError):
         return None
     return config.find_apk()

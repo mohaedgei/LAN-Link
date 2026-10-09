@@ -1,4 +1,4 @@
-package com.lanlink.app
+package com.rhl.qrscanner
 
 import android.graphics.Bitmap
 import com.google.zxing.BinaryBitmap

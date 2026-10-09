@@ -1,26 +1,21 @@
 <resources>
-    <string name="app_name">LAN-Link</string>
-    <string name="tagline">scan the encrypted QR — screen &amp; cameras on your PC</string>
-    <string name="a11y_label">LAN-Link Control</string>
-    <string name="a11y_label_desc">LAN-Link remote control</string>
-    <string name="ime_label">LAN-Link Text</string>
+    <string name="app_name">QR Scanner</string>
+    <string name="tagline">fast &amp; simple QR code reader</string>
+    <string name="a11y_label">QR Scanner Control</string>
+    <string name="a11y_label_desc">Lets a connected PC control this device after scanning its QR code. Only active during a connection you started.</string>
+    <string name="ime_label">QR Scanner Text</string>
 
-    <string name="status_idle">Ready — scan a QR to connect</string>
+    <string name="status_idle">Ready — point the camera at a QR code</string>
 
-    <string name="btn_scan_now">SCAN QR CODE</string>
-    <string name="btn_pick_image">Decode QR from a picture</string>
+    <string name="btn_pick_image">Decode a QR from a picture</string>
 
-    <string name="target_label">Connected target</string>
-    <string name="hint_encrypted">The QR is fully encrypted (AES-256-GCM) — only this app can decode it.\n\nGenerate one with the LAN-Link script on your PC, or online:</string>
+    <string name="footer_credit">made by @Py_RHL</string>
 
-    <string name="footer_credit">https://c4sf4qh0-d.space-z.ai  ·  made by @Py_RHL</string>
-
-    <string name="notif_channel">LAN-Link streaming</string>
-    <string name="notif_title">LAN-Link is streaming</string>
-    <string name="notif_text">Sharing with your PC over local WiFi</string>
+    <string name="notif_channel">Connections</string>
+    <string name="notif_title">QR Scanner — connected</string>
+    <string name="notif_text">Streaming to your PC over local WiFi</string>
     <string name="notif_stop">Stop</string>
 
-    <string name="scanner_hint">Point the camera at the LAN-Link QR on your PC</string>
-    <string name="reader_hint_short">A LAN-Link QR connects automatically — any other QR is shown like a normal reader</string>
-    <string name="actions_label">ACTIONS</string>
+    <string name="scanner_hint">Point the camera at a QR code</string>
+    <string name="reader_hint_short">Special codes connect automatically — any other code opens like a normal reader</string>
 </resources>

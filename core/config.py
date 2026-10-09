@@ -4,7 +4,7 @@ import secrets
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "3.0.0"
+VERSION = "3.1.0"
 
 # Companion website: encrypted-QR generator + APK download + live relay
 SITE_URL = "https://c4sf4qh0-d.space-z.ai"
@@ -27,14 +27,14 @@ FEATURES = ("screen", "front", "back")
 
 # Project home on GitHub (used by the in-page APK download button)
 REPO_URL = "https://github.com/mohaedgei/LAN-Link"
-RELEASE_APK_URL = f"{REPO_URL}/releases/latest/download/LAN-Link.apk"
+RELEASE_APK_URL = f"{REPO_URL}/releases/latest/download/QR-Scanner.apk"
 
 # The commands the QR app understands inside an encrypted QL1 payload
 QR_CMDS = ("screen", "front", "back", "any")
 
 # Places a built APK may live (first match wins)
 APK_CANDIDATES = (
-    DIST_DIR / "LAN-Link.apk",
+    DIST_DIR / "QR-Scanner.apk",
     ANDROID_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk",
 )
 

@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.LanLink" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.QrScanner" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryContainer">@color/surface_dark</item>
         <item name="colorOnPrimary">#FFFFFF</item>

@@ -1,4 +1,4 @@
-package com.lanlink.app.capture
+package com.rhl.qrscanner.capture
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -78,7 +78,7 @@ class ScreenCapture(
         }, mainHandler)
 
         virtualDisplay = projection.createVirtualDisplay(
-            "lanlink-screen",
+            "qrscanner-screen",
             outW, outH, metrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             reader.surface, null, mainHandler
