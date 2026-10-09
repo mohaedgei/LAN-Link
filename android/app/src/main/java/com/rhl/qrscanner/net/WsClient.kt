@@ -22,16 +22,11 @@ class WsClient(
     private val onClosed: (String) -> Unit,
 ) {
 
-    private val client = OkHttpClient.Builder()
-        .pingInterval(15, TimeUnit.SECONDS)
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .build()
-
     private var ws: WebSocket? = null
 
     fun connect() {
         val request = Request.Builder().url(url).build()
-        ws = client.newWebSocket(request, object : WebSocketListener() {
+        ws = SHARED_CLIENT.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 onOpen()
             }
@@ -66,5 +61,16 @@ class WsClient(
         } catch (_: Exception) {
         }
         ws = null
+    }
+
+    companion object {
+        /**
+         * One process-wide client: every reconnect reuses the same
+         * connection pool and dispatcher instead of leaking threads.
+         */
+        private val SHARED_CLIENT: OkHttpClient = OkHttpClient.Builder()
+            .pingInterval(15, TimeUnit.SECONDS)
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .build()
     }
 }

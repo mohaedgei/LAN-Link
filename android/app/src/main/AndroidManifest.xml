@@ -42,6 +42,11 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection|camera" />
 
+        <!-- "Open viewer" button on the streaming notification -->
+        <receiver
+            android:name=".ViewerActionReceiver"
+            android:exported="false" />
+
         <!-- Remote control: injects taps / swipes / pinches -->
         <service
             android:name=".control.ControlAccessibilityService"

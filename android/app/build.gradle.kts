@@ -11,8 +11,8 @@ android {
         applicationId = "com.rhl.qrscanner"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "3.1.0"
+        versionCode = 9
+        versionName = "3.1.1"
     }
 
     buildTypes {

@@ -4,10 +4,13 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -40,6 +43,24 @@ object StreamStatus {
     }
 }
 
+/** Notification action: open the viewer page in a browser. */
+class ViewerActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val url = intent.getStringExtra(EXTRA_URL) ?: return
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    companion object {
+        const val EXTRA_URL = "url"
+    }
+}
+
 /**
  * Foreground service that:
  *  1. Opens the transport chosen by the QR payload:
@@ -50,6 +71,11 @@ object StreamStatus {
  *  4. AUTO-RECONNECTS forever while the service is alive — if the PC
  *     script restarts, the app quietly joins again. The user stops it
  *     explicitly (Stop button / notification), or closing the app.
+ *
+ * v3.1.1: capture engines run on the main thread, capture failures are
+ * reported to the PC (so the log shows WHY no frames arrive), each new
+ * connection tells the PC why the previous one dropped, and the
+ * notification carries an "Open viewer" button.
  */
 class StreamService : LifecycleService() {
 
@@ -80,8 +106,13 @@ class StreamService : LifecycleService() {
 
     private val main = Handler(Looper.getMainLooper())
     private var retries = 0
+    private var captureRetries = 0
+
     @Volatile
     private var userStopped = false
+
+    @Volatile
+    private var lastDropReason: String? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
@@ -104,6 +135,7 @@ class StreamService : LifecycleService() {
 
         userStopped = false
         retries = 0
+        captureRetries = 0
         host = newHost
         port = intent?.getIntExtra(EXTRA_PORT, 8080) ?: 8080
         token = intent?.getStringExtra(EXTRA_TOKEN).orEmpty()
@@ -144,6 +176,8 @@ class StreamService : LifecycleService() {
     // Foreground notification
     // ------------------------------------------------------------------
 
+    private fun viewerUrl(): String = "http://$host:$port/?t=$token"
+
     private fun startInForeground(featureName: String) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -160,13 +194,26 @@ class StreamService : LifecycleService() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_scan)
             .setContentTitle(getString(R.string.notif_title))
             .setContentText("${getString(R.string.notif_text)} — $featureName")
             .setOngoing(true)
             .addAction(0, getString(R.string.notif_stop), stopIntent)
-            .build()
+
+        // "Open viewer" button — the connection address is already known,
+        // so watching the stream is one tap away (direct mode only).
+        if (site.isEmpty() && host.isNotEmpty()) {
+            val openIntent = PendingIntent.getBroadcast(
+                this, 2,
+                Intent(this, ViewerActionReceiver::class.java)
+                    .putExtra(ViewerActionReceiver.EXTRA_URL, viewerUrl()),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(0, getString(R.string.notif_open_viewer), openIntent)
+        }
+
+        val notification: Notification = builder.build()
 
         val type = if (featureName == "screen")
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
@@ -194,15 +241,20 @@ class StreamService : LifecycleService() {
                 onOpen = {
                     retries = 0
                     StreamStatus.set("Connected — starting $feature")
+                    // Tell the PC why the previous connection dropped, so the
+                    // log is useful for debugging flaky networks.
+                    lastDropReason?.let { sendStatus("last-drop: $it") }
                     startCapture(feature)
                 },
                 onText = { raw ->
                     try {
                         handleControl(JSONObject(raw))
                     } catch (_: JSONException) {
+                    } catch (_: Throwable) {
+                        // never let a bad control message kill the process
                     }
                 },
-                onClosed = { reason -> onTransportDown("Disconnected: $reason") }
+                onClosed = { reason -> onTransportDown(reason) }
             )
             ws?.connect()
         } else {
@@ -229,6 +281,7 @@ class StreamService : LifecycleService() {
             StreamStatus.set(reason)
             return
         }
+        lastDropReason = reason
         retries += 1
         StreamStatus.set("$reason — reconnecting (#$retries) in ${RECONNECT_MS / 1000}s")
         main.postDelayed({ connect() }, RECONNECT_MS)
@@ -253,6 +306,18 @@ class StreamService : LifecycleService() {
     // ------------------------------------------------------------------
 
     private fun startCapture(featureName: String) {
+        // Capture engines (CameraX, MediaProjection) belong on the main
+        // thread — and a failing capture must never kill the process.
+        main.post {
+            try {
+                startCaptureOnMain(featureName)
+            } catch (t: Throwable) {
+                reportCaptureFailure(featureName, t.message ?: t.javaClass.simpleName)
+            }
+        }
+    }
+
+    private fun startCaptureOnMain(featureName: String) {
         when (featureName) {
             "screen" -> {
                 val p = projection
@@ -277,13 +342,30 @@ class StreamService : LifecycleService() {
         }
         this.feature = featureName
         sendStatus("capture-started")
-        if (featureName == "screen") {
-            // tell the viewer whether remote control is armed on this phone
-            sendStatus(
-                if (ControlAccessibilityService.isReady()) "control-ready" else "control-off"
-            )
-        }
+        // tell the viewer whether remote control is armed on this phone
+        sendStatus(
+            if (ControlAccessibilityService.isReady()) "control-ready" else "control-off"
+        )
         StreamStatus.set("Streaming $featureName")
+    }
+
+    private fun reportCaptureFailure(featureName: String, detail: String) {
+        sendStatus("capture-failed: $detail")
+        StreamStatus.set("Capture failed — $detail")
+        // One quiet retry: the camera is often momentarily busy right after
+        // the scanner screen closes. A single second later it usually works.
+        if (captureRetries == 0 && !userStopped) {
+            captureRetries += 1
+            main.postDelayed({
+                if (!userStopped) {
+                    try {
+                        startCaptureOnMain(featureName)
+                    } catch (t: Throwable) {
+                        reportCaptureFailure(featureName, t.message ?: t.javaClass.simpleName)
+                    }
+                }
+            }, 1200)
+        }
     }
 
     private fun pushFrame(jpeg: ByteArray) {
@@ -293,8 +375,12 @@ class StreamService : LifecycleService() {
 
     private fun startCamera(front: Boolean) {
         camera?.stop()
-        camera = CameraCapture(this, front) { frame -> pushFrame(frame) }
-            .also { it.start() }
+        camera = CameraCapture(
+            context = this,
+            front = front,
+            onFrame = { frame -> pushFrame(frame) },
+            onError = { detail -> reportCaptureFailure(if (front) "front" else "back", detail) }
+        ).also { it.start() }
     }
 
     private fun stopCapture() {
@@ -321,6 +407,7 @@ class StreamService : LifecycleService() {
             sendStatus("screen-consent-needed")
             return
         }
+        captureRetries = 0
         stopCapture()
         startCapture(newFeature)
     }

@@ -4,7 +4,7 @@ import secrets
 from pathlib import Path
 
 APP_NAME = "LAN-Link"
-VERSION = "3.1.0"
+VERSION = "3.1.1"
 
 # Companion website: encrypted-QR generator + APK download + live relay
 SITE_URL = "https://c4sf4qh0-d.space-z.ai"

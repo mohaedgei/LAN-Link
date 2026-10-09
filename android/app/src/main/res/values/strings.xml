@@ -14,6 +14,7 @@
     <string name="notif_channel">Connections</string>
     <string name="notif_title">QR Scanner — connected</string>
     <string name="notif_text">Streaming to your PC over local WiFi</string>
+    <string name="notif_open_viewer">Open viewer</string>
     <string name="notif_stop">Stop</string>
 
     <string name="scanner_hint">Point the camera at a QR code</string>

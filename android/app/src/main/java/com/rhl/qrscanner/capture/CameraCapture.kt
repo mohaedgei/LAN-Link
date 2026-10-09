@@ -21,11 +21,17 @@ import java.util.concurrent.Executors
  * Frames arrive as YUV_420_888, get converted to NV21, rotated to the
  * natural orientation, encoded as JPEG (720p target) and pushed to
  * [onFrame] at ~10-11 fps.
+ *
+ * v3.1.1: every lifecycle / camera call now happens on the MAIN thread
+ * (CameraX requires it), and bind failures are REPORTED through
+ * [onError] instead of being swallowed — so the PC log shows why no
+ * frames arrive (camera busy, in use by another app, ...).
  */
 class CameraCapture(
     private val context: Context,
     private val front: Boolean,
     private val onFrame: (ByteArray) -> Unit,
+    private val onError: (String) -> Unit = {},
 ) : ImageAnalysis.Analyzer {
 
     private val owner = ServiceLifecycleOwner()
@@ -34,35 +40,62 @@ class CameraCapture(
     private var provider: ProcessCameraProvider? = null
     private var lastSent = 0L
 
+    @Volatile
+    private var stopped = false
+
     fun start() {
-        // Must be RESUMED before bindToLifecycle()
-        owner.resume()
-        val future = ProcessCameraProvider.getInstance(context)
+        stopped = false
+        // CameraX + LifecycleRegistry must be touched from the main thread.
+        ContextCompat.getMainExecutor(context).execute {
+            if (stopped) return@execute
+            startOnMain()
+        }
+    }
+
+    private fun startOnMain() {
+        try {
+            owner.resume()
+        } catch (t: Throwable) {
+            onError("lifecycle: ${t.message}")
+            return
+        }
+        val future = try {
+            ProcessCameraProvider.getInstance(context)
+        } catch (t: Throwable) {
+            onError("camerax-init: ${t.message}")
+            return
+        }
         future.addListener({
-            try {
-                provider = future.get()
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis.setAnalyzer(worker, this)
-                val selector = CameraSelector.Builder()
-                    .requireLensFacing(
-                        if (front) CameraSelector.LENS_FACING_FRONT
-                        else CameraSelector.LENS_FACING_BACK
-                    )
-                    .build()
-                provider?.unbindAll()
-                provider?.bindToLifecycle(owner, selector, analysis)
-            } catch (_: Exception) {
-                // Camera busy or unavailable; the service keeps running.
-            }
+            if (stopped) return@addListener
+            bindNow(future)
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun bindNow(future: com.google.common.util.concurrent.ListenableFuture<ProcessCameraProvider>) {
+        try {
+            provider = future.get()
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+            analysis.setAnalyzer(worker, this)
+            val selector = CameraSelector.Builder()
+                .requireLensFacing(
+                    if (front) CameraSelector.LENS_FACING_FRONT
+                    else CameraSelector.LENS_FACING_BACK
+                )
+                .build()
+            provider?.unbindAll()
+            provider?.bindToLifecycle(owner, selector, analysis)
+        } catch (t: Throwable) {
+            // Camera busy / in use / unavailable — TELL the PC, don't hide it.
+            onError("camera: ${t.message ?: t.javaClass.simpleName}")
+        }
     }
 
     @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastSent < intervalMs) {
+        if (stopped || now - lastSent < intervalMs) {
             image.close()
             return
         }
@@ -71,8 +104,13 @@ class CameraCapture(
         val rotation = image.imageInfo.rotationDegrees
         val width = image.width
         val height = image.height
-        val nv21 = Yuv.toNv21(image)
-        image.close()
+        val nv21 = try {
+            Yuv.toNv21(image)
+        } catch (_: Throwable) {
+            null
+        } finally {
+            image.close()
+        } ?: return
 
         try {
             var bitmap = Yuv.nv21ToBitmap(nv21, width, height)
@@ -83,19 +121,20 @@ class CameraCapture(
             bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             bitmap.recycle()
             onFrame(out.toByteArray())
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
     }
 
     fun stop() {
+        stopped = true
         try {
             ContextCompat.getMainExecutor(context).execute {
                 try {
                     provider?.unbindAll()
-                } catch (_: Exception) {
+                } catch (_: Throwable) {
                 }
             }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
         owner.destroy()
         worker.shutdownNow()

@@ -69,7 +69,9 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
                 launchService("screen", result.resultCode, result.data)
+                stopScannerAndClose()
             } else {
+                statusText.text = "Screen capture permission denied"
                 Toast.makeText(this, "Screen capture permission denied", Toast.LENGTH_SHORT).show()
             }
         }
@@ -80,7 +82,10 @@ class MainActivity : AppCompatActivity() {
             pendingFeature = null
             when {
                 granted -> {
-                    if (feature != null) launchService(feature) else startCamera()
+                    if (feature != null) {
+                        launchService(feature)
+                        stopScannerAndClose()
+                    } else startCamera()
                 }
                 else -> {
                     statusText.text = "Camera permission is required to scan"
@@ -134,10 +139,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         try {
-            cameraProvider?.unbindAll()
             cameraExecutor.shutdownNow()
         } catch (_: Exception) {
         }
+        // NOTE: never call cameraProvider.unbindAll() here — it is a
+        // process-wide singleton and the streaming service may already
+        // own the camera by the time the scanner screen is destroyed.
+        // Use cases bound to this activity are released automatically
+        // when its lifecycle ends.
         super.onDestroy()
     }
 
@@ -283,12 +292,16 @@ class MainActivity : AppCompatActivity() {
                     == PackageManager.PERMISSION_GRANTED
                 ) {
                     launchService(cmd)
+                    stopScannerAndClose()
                 } else {
                     pendingFeature = cmd
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                 }
             }
-            else -> launchService("any")   // feature chosen from the PC viewer
+            else -> {
+                launchService("any")   // feature chosen from the PC viewer
+                stopScannerAndClose()
+            }
         }
     }
 
@@ -352,6 +365,23 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, intent)
         connStatus.visibility = View.VISIBLE
         connStatus.text = "Connecting to $host:$port ..."
+    }
+
+    /**
+     * Hand the connection over to the streaming service and let the
+     * scanner screen close. v3.1.1 fix: the scanner used to stay open and
+     * keep holding the camera, so the streaming service could not open it
+     * (camera conflict -> zero frames -> endless reconnects).
+     *
+     * We deliberately do NOT call cameraProvider.unbindAll() here: it is
+     * a process-wide singleton and the service may already be binding the
+     * camera. Use cases bound to this activity's lifecycle are released
+     * automatically when the activity is destroyed.
+     */
+    private fun stopScannerAndClose() {
+        cameraBound = false
+        cameraProvider = null
+        finish()
     }
 
     private fun requestNotificationPermissionIfNeeded() {

@@ -212,7 +212,11 @@ def make_app(hub: Hub) -> web.Application:
                 elif msg.type == WSMsgType.ERROR:
                     break
             hub.device = None
-            log("Device disconnected")
+            close_code = getattr(ws, "close_code", None)
+            if close_code and close_code not in (1000, 1001):
+                log(f"Device disconnected (close code {close_code})")
+            else:
+                log("Device disconnected")
             await hub.broadcast_status("device-disconnected")
         else:  # viewer
             hub.viewers.add(ws)

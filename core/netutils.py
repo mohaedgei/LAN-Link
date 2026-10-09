@@ -1,15 +1,24 @@
 """LAN IP detection and small network helpers."""
 
 import socket
+import struct
+import fcntl
 
 
 def get_lan_ip() -> str:
     """Return the primary LAN IP of this machine.
 
-    Opens a UDP socket towards a public address (no packet is actually
-    sent) so the OS picks the interface used for internet/LAN routing.
-    Falls back to 127.0.0.1 if it fails.
+    Strategy (first success wins):
+      1. UDP-route trick — the OS picks the interface used for the
+         default route (no packet is actually sent).
+      2. Read the default-route interface from /proc/net/route and ask
+         the kernel for its IPv4 via SIOCGIFADDR — this works on Termux
+         even when there is no internet route to 8.8.8.8.
+      3. Walk all interfaces and return the first private IPv4,
+         preferring wlan* / eth* / ap* names.
+    Falls back to 127.0.0.1 (callers should warn when that happens).
     """
+    # -- 1. UDP connect trick -----------------------------------------
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
@@ -17,9 +26,68 @@ def get_lan_ip() -> str:
             ip = sock.getsockname()[0]
         finally:
             sock.close()
-        return ip
+        if ip and not ip.startswith("127."):
+            return ip
     except OSError:
-        return "127.0.0.1"
+        pass
+
+    # -- 2. /proc/net/route default iface + ioctl ----------------------
+    iface = _default_route_iface()
+    if iface:
+        ip = _iface_ip(iface)
+        if ip:
+            return ip
+
+    # -- 3. scan interfaces, prefer wifi/ethernet names ----------------
+    try:
+        names = [name for _, name in socket.if_nameindex()]
+    except OSError:
+        names = []
+    preferred = [n for n in names if n.startswith(("wlan", "eth", "ap"))]
+    for name in preferred + [n for n in names if n not in preferred]:
+        if name == "lo":
+            continue
+        ip = _iface_ip(name)
+        if ip and not ip.startswith("127."):
+            return ip
+
+    return "127.0.0.1"
+
+
+def _default_route_iface() -> str | None:
+    """Parse /proc/net/route for the interface of the default route."""
+    try:
+        with open("/proc/net/route", encoding="ascii") as fh:
+            for line in fh.readlines()[1:]:
+                fields = line.strip().split()
+                if len(fields) < 2:
+                    continue
+                iface, dest = fields[0], fields[1]
+                if dest == "00000000":
+                    return iface
+    except OSError:
+        pass
+    return None
+
+
+def _iface_ip(iface: str) -> str | None:
+    """IPv4 of an interface via SIOCGIFADDR (pure Python, no binaries)."""
+    SIOCGIFADDR = 0x8915
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            packed = struct.pack("256s", iface[:15].encode("ascii"))
+            addr = fcntl.ioctl(sock.fileno(), SIOCGIFADDR, packed)[20:24]
+        finally:
+            sock.close()
+        return socket.inet_ntoa(addr)
+    except (OSError, UnicodeEncodeError):
+        return None
+
+
+def is_loopback(ip: str) -> bool:
+    """True when the address only reaches this same device."""
+    return ip == "127.0.0.1" or ip.startswith("127.")
 
 
 def is_valid_ip(value: str) -> bool:

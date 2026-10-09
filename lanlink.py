@@ -22,6 +22,7 @@ GREEN = "\033[92m"
 BRIGHT = "\033[1m"
 DIM = "\033[2m"
 RED = "\033[91m"
+YELLOW = "\033[91m"
 RESET = "\033[0m"
 MAKER = "@Py_RHL"
 
@@ -224,6 +225,20 @@ def make_qr_and_wait(handle, cmd: str, via: str) -> None:
     line()
     print(f"  Watch in browser : {GREEN}http://{ip}:{port}/?t={token}{RESET}")
     line()
+
+    if netutils.is_loopback(ip):
+        print(f"  {YELLOW}{BRIGHT}[!] WARNING: the IP is 127.0.0.1 (no WiFi IP found).{RESET}")
+        print(f"  {YELLOW}Only THIS device can connect and only THIS device's{RESET}")
+        print(f"  {YELLOW}browser can open the viewer link. For other devices run:{RESET}")
+        print(f"  {DIM}python lanlink.py qr -f {cmd} --host <your-wifi-ip>{RESET}")
+        line()
+
+    opened = _open_viewer(f"http://{ip}:{port}/?t={token}")
+    if opened:
+        print(f"  {GREEN}[OK] Viewer opened in your browser — watch it there.{RESET}")
+    else:
+        print(f"  {DIM}Could not auto-open a browser — open the link above manually.{RESET}")
+    print()
     print(f"  Scan it with the LAN-Link app (camera or a saved picture).")
     print(f"  {DIM}This screen waits for the app — Ctrl+C returns to the menu,{RESET}")
     print(f"  {DIM}the server keeps running either way.{RESET}")
@@ -231,6 +246,40 @@ def make_qr_and_wait(handle, cmd: str, via: str) -> None:
 
     qrgen.make(payload, f"{cmd}-app", config.DIST_DIR)
     _wait_for_connection(handle, cmd)
+
+
+def _open_viewer(url: str) -> bool:
+    """Best-effort: open the viewer URL in a browser.
+
+    On Termux it uses termux-open (or the Android `am` launcher);
+    on Linux/macOS/Windows xdg-open / the default webbrowser module.
+    Never raises — worst case it reports False.
+    """
+    import shutil
+    import subprocess
+    import webbrowser
+
+    candidates = [
+        ["termux-open", url],
+        ["termux-open-url", url],
+        ["xdg-open", url],
+        # Android's activity manager (present in Termux without the API pkg)
+        ["/system/bin/am", "start", "-a", "android.intent.action.VIEW", "-d", url],
+    ]
+    for cmd in candidates:
+        if shutil.which(cmd[0]) or (cmd[0].startswith("/") and os.path.exists(cmd[0])):
+            try:
+                result = subprocess.run(
+                    cmd, capture_output=True, timeout=8, check=False
+                )
+                if result.returncode == 0:
+                    return True
+            except Exception:
+                continue
+    try:
+        return bool(webbrowser.open(url))
+    except Exception:
+        return False
 
 
 def _wait_for_connection(handle, cmd: str) -> None:
